@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToastmasters } from "@/lib/stores/useToastmasters";
 import { useAudio } from "@/lib/stores/useAudio";
+import { useRecorder } from "@/lib/useRecorder";
 
 export default function TableTopicsMode() {
   const {
@@ -9,6 +10,7 @@ export default function TableTopicsMode() {
     tableTopicPrompt, generateTableTopic, goToMenu,
   } = useToastmasters();
   const { playSuccess } = useAudio();
+  const recorder = useRecorder();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [started, setStarted] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -27,6 +29,7 @@ export default function TableTopicsMode() {
   useEffect(() => {
     if (timerSeconds >= timerMaxSeconds && timerRunning) {
       stopTimer();
+      recorder.stopRecording();
       setShowFeedback(true);
     }
   }, [timerSeconds, timerMaxSeconds, timerRunning, stopTimer]);
@@ -34,10 +37,12 @@ export default function TableTopicsMode() {
   const handleStart = () => {
     setStarted(true);
     startTimer(120);
+    recorder.startRecording();
   };
 
   const handleFinish = () => {
     stopTimer();
+    recorder.stopRecording();
     setShowFeedback(true);
     playSuccess();
   };
@@ -177,6 +182,7 @@ export default function TableTopicsMode() {
                     borderRadius: 10,
                     fontSize: 14,
                     cursor: "pointer",
+                    minHeight: 44,
                   }}
                 >
                   New Prompt
@@ -192,6 +198,7 @@ export default function TableTopicsMode() {
                     fontSize: 14,
                     fontWeight: 700,
                     cursor: "pointer",
+                    minHeight: 44,
                   }}
                 >
                   Start Speaking
@@ -209,6 +216,7 @@ export default function TableTopicsMode() {
                   fontSize: 14,
                   fontWeight: 700,
                   cursor: "pointer",
+                  minHeight: 44,
                 }}
               >
                 Finish Speaking
@@ -242,6 +250,71 @@ export default function TableTopicsMode() {
               ? "Perfect timing! You stayed within the ideal range."
               : "Great effort! Try to be a bit more concise next time."}
           </div>
+
+          {recorder.hasRecording && (
+            <div style={{
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 12,
+              padding: "14px 18px",
+              marginBottom: 16,
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}>
+              <div style={{ fontSize: 12, color: "#a0aec0", marginBottom: 10 }}>Your Recording</div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                {!recorder.isPlaying ? (
+                  <button
+                    onClick={recorder.playRecording}
+                    style={{
+                      background: "linear-gradient(135deg, #4299e1, #3182ce)",
+                      color: "white",
+                      border: "none",
+                      padding: "8px 18px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      minHeight: 44,
+                    }}
+                  >
+                    Play Back
+                  </button>
+                ) : (
+                  <button
+                    onClick={recorder.stopPlayback}
+                    style={{
+                      background: "rgba(255,255,255,0.15)",
+                      color: "white",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      padding: "8px 18px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      minHeight: 44,
+                    }}
+                  >
+                    Stop
+                  </button>
+                )}
+                <button
+                  onClick={() => recorder.downloadRecording("table-topics-recording")}
+                  style={{
+                    background: "rgba(255,255,255,0.1)",
+                    color: "white",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    padding: "8px 18px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    minHeight: 44,
+                  }}
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleComplete}
             style={{
@@ -253,12 +326,40 @@ export default function TableTopicsMode() {
               fontSize: 14,
               fontWeight: 700,
               cursor: "pointer",
+              minHeight: 44,
             }}
           >
             Complete Session
           </button>
         </div>
       )}
+
+      {started && !showFeedback && recorder.isRecording && (
+        <div style={{
+          position: "absolute",
+          bottom: 20,
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            width: 10, height: 10, borderRadius: "50%",
+            background: "#e94560",
+            animation: "pulse 1.5s infinite",
+          }} />
+          <span style={{ color: "#e94560", fontSize: 12, fontWeight: 600 }}>REC</span>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -4,6 +4,9 @@
 A browser-based 3D game simulating a Toastmasters meeting where users can practice different meeting roles interactively in a virtual environment. Built with React Three Fiber for 3D rendering. Supports both solo practice and real-time multiplayer with 6+ players.
 
 ## Recent Changes
+- 2026-02-24: Added audio recording to Speaker and Table Topics modes (record, playback, download)
+- 2026-02-24: Switched from Capacitor to Expo for App Store builds, pushed code to GitHub
+- 2026-02-24: Added multiplayer chat moderation, player blocking/reporting
 - 2026-02-24: Added real-time multiplayer mode with WebSocket rooms, lobby system, role assignment, and synchronized gameplay
 - 2026-02-24: Initial build of the complete game with all 6 roles, 3D meeting room, gamification system
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToastmasters } from "@/lib/stores/useToastmasters";
 import { useAudio } from "@/lib/stores/useAudio";
+import { useRecorder } from "@/lib/useRecorder";
 
 export default function SpeakerMode() {
   const {
@@ -9,6 +10,7 @@ export default function SpeakerMode() {
     setAudienceReaction, goToMenu,
   } = useToastmasters();
   const { playSuccess } = useAudio();
+  const recorder = useRecorder();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [started, setStarted] = useState(false);
 
@@ -41,6 +43,7 @@ export default function SpeakerMode() {
   useEffect(() => {
     if (timerSeconds >= timerMaxSeconds && timerRunning) {
       stopTimer();
+      recorder.stopRecording();
       setAudienceReaction("applause");
     }
   }, [timerSeconds, timerMaxSeconds, timerRunning, stopTimer, setAudienceReaction]);
@@ -48,13 +51,14 @@ export default function SpeakerMode() {
   const handleStart = () => {
     setStarted(true);
     startTimer(300);
+    recorder.startRecording();
   };
 
   const handleFinish = () => {
     stopTimer();
+    recorder.stopRecording();
     setAudienceReaction("applause");
     playSuccess();
-    setTimeout(() => completeRole(), 1500);
   };
 
   const formatTime = (seconds: number) => {
@@ -161,6 +165,8 @@ export default function SpeakerMode() {
 
       <div style={{
         display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
         gap: 12,
         pointerEvents: "auto",
         marginBottom: 10,
@@ -178,29 +184,128 @@ export default function SpeakerMode() {
               fontWeight: 700,
               cursor: "pointer",
               boxShadow: "0 4px 20px rgba(72, 187, 120, 0.4)",
+              minHeight: 48,
             }}
           >
             Begin Speech
           </button>
+        ) : !recorder.hasRecording ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {recorder.isRecording && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{
+                  width: 10, height: 10, borderRadius: "50%",
+                  background: "#e94560",
+                  animation: "pulse 1.5s infinite",
+                }} />
+                <span style={{ color: "#e94560", fontSize: 12, fontWeight: 600 }}>REC</span>
+              </div>
+            )}
+            <button
+              onClick={handleFinish}
+              style={{
+                background: "linear-gradient(135deg, #e94560, #c62a71)",
+                color: "white",
+                border: "none",
+                padding: "14px 32px",
+                borderRadius: 12,
+                fontSize: 16,
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 4px 20px rgba(233, 69, 96, 0.4)",
+                minHeight: 48,
+              }}
+            >
+              Finish Speech
+            </button>
+          </div>
         ) : (
-          <button
-            onClick={handleFinish}
-            style={{
-              background: "linear-gradient(135deg, #e94560, #c62a71)",
-              color: "white",
-              border: "none",
-              padding: "14px 32px",
-              borderRadius: 12,
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 4px 20px rgba(233, 69, 96, 0.4)",
-            }}
-          >
-            Finish Speech
-          </button>
+          <div style={{
+            background: "rgba(0,0,0,0.85)",
+            borderRadius: 16,
+            padding: "20px 28px",
+            textAlign: "center",
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}>
+            <div style={{ fontSize: 14, color: "#a0aec0", marginBottom: 12 }}>Your Recording</div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              {!recorder.isPlaying ? (
+                <button
+                  onClick={recorder.playRecording}
+                  style={{
+                    background: "linear-gradient(135deg, #4299e1, #3182ce)",
+                    color: "white",
+                    border: "none",
+                    padding: "10px 20px",
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    minHeight: 44,
+                  }}
+                >
+                  Play Back
+                </button>
+              ) : (
+                <button
+                  onClick={recorder.stopPlayback}
+                  style={{
+                    background: "rgba(255,255,255,0.15)",
+                    color: "white",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    padding: "10px 20px",
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    minHeight: 44,
+                  }}
+                >
+                  Stop
+                </button>
+              )}
+              <button
+                onClick={() => recorder.downloadRecording("speech-recording")}
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  color: "white",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  padding: "10px 20px",
+                  borderRadius: 10,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  minHeight: 44,
+                }}
+              >
+                Download
+              </button>
+              <button
+                onClick={() => completeRole()}
+                style={{
+                  background: "linear-gradient(135deg, #48bb78, #38a169)",
+                  color: "white",
+                  border: "none",
+                  padding: "10px 20px",
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  minHeight: 44,
+                }}
+              >
+                Complete
+              </button>
+            </div>
+          </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `}</style>
     </div>
   );
 }
