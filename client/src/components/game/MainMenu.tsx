@@ -1,9 +1,11 @@
 import { useToastmasters } from "@/lib/stores/useToastmasters";
 import { useAudio } from "@/lib/stores/useAudio";
+import { useMultiplayer } from "@/lib/stores/useMultiplayer";
 
 export default function MainMenu() {
   const { goToRoleSelection, points, level, completedRoles, badges } = useToastmasters();
   const { toggleMute, isMuted } = useAudio();
+  const { setMultiplayerMode } = useMultiplayer();
   
   const earnedBadges = badges.filter(b => b.earned);
   
@@ -120,31 +122,59 @@ export default function MainMenu() {
           </div>
         )}
 
-        <button
-          onClick={goToRoleSelection}
-          style={{
-            background: "linear-gradient(135deg, #e94560, #c62a71)",
-            color: "white",
-            border: "none",
-            padding: "16px 48px",
-            borderRadius: 12,
-            fontSize: 18,
-            fontWeight: 700,
-            cursor: "pointer",
-            transition: "transform 0.2s, box-shadow 0.2s",
-            boxShadow: "0 4px 20px rgba(233, 69, 96, 0.4)",
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = "scale(1.05)";
-            e.currentTarget.style.boxShadow = "0 6px 30px rgba(233, 69, 96, 0.6)";
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.boxShadow = "0 4px 20px rgba(233, 69, 96, 0.4)";
-          }}
-        >
-          Start Practice Session
-        </button>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={goToRoleSelection}
+            style={{
+              background: "linear-gradient(135deg, #e94560, #c62a71)",
+              color: "white",
+              border: "none",
+              padding: "16px 36px",
+              borderRadius: 12,
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+              boxShadow: "0 4px 20px rgba(233, 69, 96, 0.4)",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = "scale(1.05)";
+              e.currentTarget.style.boxShadow = "0 6px 30px rgba(233, 69, 96, 0.6)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = "0 4px 20px rgba(233, 69, 96, 0.4)";
+            }}
+          >
+            Solo Practice
+          </button>
+
+          <button
+            onClick={() => setMultiplayerMode(true)}
+            style={{
+              background: "linear-gradient(135deg, #4299e1, #3182ce)",
+              color: "white",
+              border: "none",
+              padding: "16px 36px",
+              borderRadius: 12,
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+              boxShadow: "0 4px 20px rgba(66, 153, 225, 0.4)",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = "scale(1.05)";
+              e.currentTarget.style.boxShadow = "0 6px 30px rgba(66, 153, 225, 0.6)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = "0 4px 20px rgba(66, 153, 225, 0.4)";
+            }}
+          >
+            Multiplayer (6+ Players)
+          </button>
+        </div>
 
         <p style={{
           marginTop: 24,
@@ -152,8 +182,8 @@ export default function MainMenu() {
           color: "#718096",
           lineHeight: 1.6,
         }}>
-          Practice your public speaking skills in an immersive 3D meeting room.
-          <br />Choose from 6 different Toastmasters roles.
+          Practice solo or join a live meeting with other players.
+          <br />Each player takes a different Toastmasters role.
         </p>
       </div>
     </div>

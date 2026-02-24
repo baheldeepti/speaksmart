@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAudio } from "./lib/stores/useAudio";
 import { useToastmasters } from "./lib/stores/useToastmasters";
+import { useMultiplayer } from "./lib/stores/useMultiplayer";
 import "@fontsource/inter";
 
 import MainMenu from "./components/game/MainMenu";
@@ -13,6 +14,8 @@ import TimerRole from "./components/game/TimerRole";
 import GrammarianMode from "./components/game/GrammarianMode";
 import AhCounterMode from "./components/game/AhCounterMode";
 import FeedbackScreen from "./components/game/FeedbackScreen";
+import MultiplayerLobby from "./components/game/MultiplayerLobby";
+import MultiplayerGame from "./components/game/MultiplayerGame";
 
 function RoleUI() {
   const selectedRole = useToastmasters(state => state.selectedRole);
@@ -38,6 +41,7 @@ function RoleUI() {
 function App() {
   const phase = useToastmasters(state => state.phase);
   const { setBackgroundMusic, setHitSound, setSuccessSound } = useAudio();
+  const { multiplayerMode, roomState } = useMultiplayer();
 
   useEffect(() => {
     const bgMusic = new Audio("/sounds/background.mp3");
@@ -53,6 +57,18 @@ function App() {
     success.volume = 0.4;
     setSuccessSound(success);
   }, [setBackgroundMusic, setHitSound, setSuccessSound]);
+
+  if (multiplayerMode) {
+    if (!roomState || roomState.phase === "lobby" || roomState.phase === "role_assignment") {
+      return (
+        <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
+          <MultiplayerLobby />
+        </div>
+      );
+    }
+
+    return <MultiplayerGame />;
+  }
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
