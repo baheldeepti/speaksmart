@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toastmasters XR - Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .container { max-width: 400px; }
+    .icon { font-size: 64px; margin-bottom: 20px; }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    p { font-size: 15px; color: #a0aec0; line-height: 1.6; margin-bottom: 24px; }
+    button {
+      background: linear-gradient(135deg, #e94560, #c62a71);
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tip {
+      margin-top: 32px;
+      padding: 16px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .tip-title { font-size: 13px; font-weight: 600; color: #f5a623; margin-bottom: 6px; }
+    .tip-text { font-size: 12px; color: #718096; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>You're Offline</h1>
+    <p>An internet connection is needed for the full Toastmasters XR experience, including multiplayer meetings.</p>
+    <button onclick="window.location.reload()">Try Again</button>
+    <div class="tip">
+      <div class="tip-title">Quick Tip</div>
+      <div class="tip-text">While you wait, think of a topic you'd like to speak about. Preparation is key to becoming a confident communicator!</div>
+    </div>
+  </div>
+</body>
+</html>

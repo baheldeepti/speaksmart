@@ -5,9 +5,10 @@ import { useAudio } from "@/lib/stores/useAudio";
 import GameScene from "./GameScene";
 
 function MultiplayerHUD() {
-  const { roomState, playerId, endMeeting, sendChat, chatMessages } = useMultiplayer();
+  const { roomState, playerId, endMeeting, sendChat, chatMessages, blockPlayer, reportPlayer, reportedPlayers } = useMultiplayer();
   const [chatInput, setChatInput] = useState("");
   const [showChat, setShowChat] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ name: string; x: number; y: number } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -149,13 +150,63 @@ function MultiplayerHUD() {
             display: "flex",
             flexDirection: "column",
             gap: 3,
+            position: "relative",
           }}>
             {chatMessages.map((msg, i) => (
-              <div key={i} style={{ fontSize: 11 }}>
-                <span style={{ fontWeight: 600, color: "#4299e1" }}>{msg.playerName}:</span>{" "}
+              <div key={i} style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                <button
+                  onClick={(e) => setContextMenu({ name: msg.playerName, x: e.clientX, y: e.clientY })}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 0,
+                    fontWeight: 600, color: "#4299e1", fontSize: 11,
+                    minHeight: 22, WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  {msg.playerName}:
+                </button>
                 <span style={{ color: "#e2e8f0" }}>{msg.message}</span>
               </div>
             ))}
+            {contextMenu && (
+              <>
+                <div onClick={() => setContextMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 80 }} />
+                <div style={{
+                  position: "fixed",
+                  left: Math.min(contextMenu.x, window.innerWidth - 160),
+                  top: Math.min(contextMenu.y, window.innerHeight - 100),
+                  background: "rgba(30,30,50,0.98)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  borderRadius: 8,
+                  padding: 4,
+                  zIndex: 90,
+                  minWidth: 140,
+                }}>
+                  <div style={{ fontSize: 10, color: "#a0aec0", padding: "4px 8px" }}>{contextMenu.name}</div>
+                  <button onClick={() => {
+                    reportPlayer(contextMenu.name);
+                    setContextMenu(null);
+                  }} style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    background: "none", border: "none", color: "#f5a623",
+                    padding: "8px 8px", fontSize: 12, cursor: "pointer",
+                    borderRadius: 4, minHeight: 36, WebkitTapHighlightColor: "transparent",
+                  }}>
+                    {reportedPlayers.has(contextMenu.name) ? "Reported" : "Report Player"}
+                  </button>
+                  <button onClick={() => {
+                    blockPlayer(contextMenu.name);
+                    setContextMenu(null);
+                  }} style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    background: "none", border: "none", color: "#e94560",
+                    padding: "8px 8px", fontSize: 12, cursor: "pointer",
+                    borderRadius: 4, minHeight: 36, WebkitTapHighlightColor: "transparent",
+                  }}>
+                    Block Player
+                  </button>
+                </div>
+              </>
+            )}
             <div ref={chatEndRef} />
           </div>
           <div style={{

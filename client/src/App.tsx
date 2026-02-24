@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAudio } from "./lib/stores/useAudio";
 import { useToastmasters } from "./lib/stores/useToastmasters";
 import { useMultiplayer } from "./lib/stores/useMultiplayer";
+import ErrorBoundary from "./components/ErrorBoundary";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 import "@fontsource/inter";
 
 import MainMenu from "./components/game/MainMenu";
@@ -38,10 +40,11 @@ function RoleUI() {
   }
 }
 
-function App() {
+function AppContent() {
   const phase = useToastmasters(state => state.phase);
   const { setBackgroundMusic, setHitSound, setSuccessSound } = useAudio();
   const { multiplayerMode, roomState } = useMultiplayer();
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   useEffect(() => {
     const bgMusic = new Audio("/sounds/background.mp3");
@@ -58,6 +61,10 @@ function App() {
     setSuccessSound(success);
   }, [setBackgroundMusic, setHitSound, setSuccessSound]);
 
+  if (showPrivacy) {
+    return <PrivacyPolicy onClose={() => setShowPrivacy(false)} />;
+  }
+
   if (multiplayerMode) {
     if (!roomState || roomState.phase === "lobby" || roomState.phase === "role_assignment") {
       return (
@@ -72,16 +79,26 @@ function App() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
-      {phase === "menu" && <MainMenu />}
+      {phase === "menu" && <MainMenu onShowPrivacy={() => setShowPrivacy(true)} />}
       {phase === "role_selection" && <RoleSelection />}
       {phase === "playing" && (
         <>
-          <GameScene />
+          <ErrorBoundary>
+            <GameScene />
+          </ErrorBoundary>
           <RoleUI />
         </>
       )}
       {phase === "feedback" && <FeedbackScreen />}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }
 

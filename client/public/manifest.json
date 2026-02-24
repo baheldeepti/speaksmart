@@ -1,0 +1,19 @@
+{
+  "name": "Toastmasters XR Practice Room",
+  "short_name": "Toastmasters XR",
+  "description": "Practice your public speaking skills in an immersive 3D virtual Toastmasters meeting room. Choose from 6 roles and improve with gamification.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "categories": ["education", "games"],
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -48,6 +48,8 @@ interface MultiplayerState {
   error: string | null;
   chatMessages: ChatMessage[];
   multiplayerMode: boolean;
+  blockedPlayers: Set<string>;
+  reportedPlayers: Set<string>;
 
   connect: () => void;
   disconnect: () => void;
@@ -73,6 +75,8 @@ interface MultiplayerState {
   endMeeting: () => void;
   returnToLobby: () => void;
 
+  blockPlayer: (playerName: string) => void;
+  reportPlayer: (playerName: string) => void;
   setMultiplayerMode: (enabled: boolean) => void;
   clearError: () => void;
 }
@@ -95,6 +99,8 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
     error: null,
     chatMessages: [],
     multiplayerMode: false,
+    blockedPlayers: new Set<string>(),
+    reportedPlayers: new Set<string>(),
 
     connect: () => {
       const { ws: existingWs } = get();
@@ -157,6 +163,7 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
               break;
 
             case "chat_message":
+              if (get().blockedPlayers.has(msg.playerName)) break;
               set((state) => ({
                 chatMessages: [
                   ...state.chatMessages,
@@ -283,6 +290,25 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
 
     returnToLobby: () => {
       send({ type: "return_to_lobby" });
+    },
+
+    blockPlayer: (playerName) => {
+      set((state) => {
+        const newBlocked = new Set(state.blockedPlayers);
+        newBlocked.add(playerName);
+        return {
+          blockedPlayers: newBlocked,
+          chatMessages: state.chatMessages.filter(m => m.playerName !== playerName),
+        };
+      });
+    },
+
+    reportPlayer: (playerName) => {
+      set((state) => {
+        const newReported = new Set(state.reportedPlayers);
+        newReported.add(playerName);
+        return { reportedPlayers: newReported };
+      });
     },
 
     setMultiplayerMode: (enabled) => {

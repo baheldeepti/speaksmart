@@ -40,6 +40,20 @@ const TABLE_TOPIC_PROMPTS = [
   "Describe a moment that changed your perspective on life.",
 ];
 
+const BLOCKED_PATTERNS = [
+  /\b(f+u+c+k+|s+h+i+t+|a+s+s+h+o+l+e|b+i+t+c+h|d+a+m+n|d+i+c+k|c+u+n+t|p+i+s+s)\b/gi,
+  /\b(n+i+g+g+|f+a+g+|r+e+t+a+r+d)\b/gi,
+  /\b(k+i+l+l\s*(you|your|u)|die|threat|bomb)\b/gi,
+];
+
+function moderateContent(text: string): string {
+  let result = text;
+  for (const pattern of BLOCKED_PATTERNS) {
+    result = result.replace(pattern, (match) => "*".repeat(match.length));
+  }
+  return result;
+}
+
 const rooms = new Map<string, Room>();
 
 function generateId(): string {
@@ -495,11 +509,15 @@ export function setupMultiplayer(server: Server) {
             const room = rooms.get(currentRoomId);
             if (!room) return;
 
+            const rawMessage = String(msg.message || "").trim();
+            if (!rawMessage || rawMessage.length > 200) return;
+            const filtered = moderateContent(rawMessage);
+
             const sender = room.players.get(playerId);
             broadcastToRoom(room, {
               type: "chat_message",
               playerName: sender?.name || "Unknown",
-              message: msg.message,
+              message: filtered,
               role: sender?.role,
             });
             break;

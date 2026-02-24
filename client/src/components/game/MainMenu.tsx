@@ -2,7 +2,7 @@ import { useToastmasters } from "@/lib/stores/useToastmasters";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useMultiplayer } from "@/lib/stores/useMultiplayer";
 
-export default function MainMenu() {
+export default function MainMenu({ onShowPrivacy }: { onShowPrivacy?: () => void }) {
   const { goToRoleSelection, points, level, completedRoles, badges } = useToastmasters();
   const { toggleMute, isMuted } = useAudio();
   const { setMultiplayerMode } = useMultiplayer();
@@ -185,6 +185,35 @@ export default function MainMenu() {
           Practice solo or join a live meeting with other players.
           <br />Each player takes a different Toastmasters role.
         </p>
+
+        <div style={{
+          marginTop: 20,
+          display: "flex",
+          gap: 16,
+          justifyContent: "center",
+          fontSize: 12,
+        }}>
+          {onShowPrivacy && (
+            <button
+              onClick={onShowPrivacy}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#4a5568",
+                cursor: "pointer",
+                fontSize: 13,
+                padding: "12px 16px",
+                minHeight: 44,
+                minWidth: 44,
+                textDecoration: "underline",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              Privacy Policy
+            </button>
+          )}
+          <span style={{ color: "#4a5568", padding: "12px 0" }}>v1.0.0</span>
+        </div>
       </div>
     </div>
   );
