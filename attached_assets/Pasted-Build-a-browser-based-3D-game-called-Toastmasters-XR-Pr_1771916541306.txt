@@ -1,0 +1,115 @@
+Build a browser-based 3D game called “Toastmasters XR Practice Room” using Three.js or React Three Fiber so it runs smoothly on desktop and mobile browsers.
+
+Core concept:
+The game simulates a Toastmasters meeting where users can practice different meeting roles interactively in a virtual environment.
+
+Required Features
+
+1. 3D Meeting Environment
+
+Virtual Toastmasters club room with podium, audience chairs, timer screen, and agenda board
+
+Simple animated audience avatars for immersion
+
+Camera navigation: walk around room or switch to speaker view
+
+2. Role Selection Menu
+Include these roles:
+
+Speaker
+
+Table Topics Speaker
+
+Timer
+
+Evaluator
+
+Grammarian
+
+Ah Counter
+
+Each role triggers a different interaction flow.
+
+3. Speaker Mode
+
+User stands at podium (first-person view)
+
+Countdown timer visible
+
+AI-generated audience reactions (applause, nodding, distraction if long pauses)
+
+Optional microphone input for speech practice (if feasible)
+
+4. Table Topics Mode
+
+Random prompt generator
+
+1–2 minute speaking timer
+
+Encouraging feedback animation at end
+
+5. Evaluator Mode
+
+Watch a prerecorded virtual speaker animation
+
+Provide evaluation checklist UI
+
+Generate structured evaluation feedback summary
+
+6. Timer Role
+
+Color-coded timer lights (green, yellow, red)
+
+Audio cues at thresholds
+
+7. Basic Feedback Engine
+
+Simple NLP placeholder for now:
+
+speech length
+
+filler words (if speech-to-text available)
+
+pacing feedback
+
+8. Gamification
+
+Points for completing roles
+
+Level progression: Beginner → Confident Speaker → Master Communicator
+
+Achievement badges
+
+Tech Stack
+
+React + Three.js (or React Three Fiber)
+
+Node backend optional for scoring
+
+Clean modular architecture
+
+Mobile-friendly responsive UI
+
+Visual Style
+
+Friendly, semi-realistic 3D environment
+
+Calm colors like a professional meeting space
+
+Avoid heavy textures to keep performance smooth
+
+Deliverables
+
+Working playable prototype hosted on Replit
+
+Clean folder structure
+
+README explaining how to extend roles later
+
+Future extensibility:
+
+AI speech analysis
+
+Multiplayer meeting simulation
+
+XR/VR compatibility later
