@@ -1,11 +1,19 @@
 import { useToastmasters } from "@/lib/stores/useToastmasters";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useMultiplayer } from "@/lib/stores/useMultiplayer";
+import { useAuth } from "@/lib/stores/useAuth";
 
-export default function MainMenu({ onShowPrivacy }: { onShowPrivacy?: () => void }) {
+interface MainMenuProps {
+  onShowPrivacy?: () => void;
+  onShowHistory?: () => void;
+  onShowScoreboard?: () => void;
+}
+
+export default function MainMenu({ onShowPrivacy, onShowHistory, onShowScoreboard }: MainMenuProps) {
   const { goToRoleSelection, points, level, completedRoles, badges } = useToastmasters();
   const { toggleMute, isMuted } = useAudio();
   const { setMultiplayerMode } = useMultiplayer();
+  const { user, logout } = useAuth();
   
   const earnedBadges = badges.filter(b => b.earned);
   
@@ -27,7 +35,21 @@ export default function MainMenu({ onShowPrivacy }: { onShowPrivacy?: () => void
         position: "absolute",
         top: 16,
         right: 16,
+        display: "flex",
+        gap: 8,
+        alignItems: "center",
       }}>
+        {user && (
+          <div style={{
+            fontSize: 13,
+            color: "#a0aec0",
+            padding: "8px 12px",
+            background: "rgba(255,255,255,0.05)",
+            borderRadius: 8,
+          }}>
+            {user.username}
+          </div>
+        )}
         <button
           onClick={toggleMute}
           style={{
@@ -38,9 +60,25 @@ export default function MainMenu({ onShowPrivacy }: { onShowPrivacy?: () => void
             borderRadius: 8,
             cursor: "pointer",
             fontSize: 14,
+            minHeight: 44,
           }}
         >
-          {isMuted ? "🔇 Unmute" : "🔊 Mute"}
+          {isMuted ? "Unmute" : "Mute"}
+        </button>
+        <button
+          onClick={logout}
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            color: "#a0aec0",
+            padding: "8px 14px",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontSize: 13,
+            minHeight: 44,
+          }}
+        >
+          Sign Out
         </button>
       </div>
 
@@ -134,16 +172,8 @@ export default function MainMenu({ onShowPrivacy }: { onShowPrivacy?: () => void
               fontSize: 16,
               fontWeight: 700,
               cursor: "pointer",
-              transition: "transform 0.2s, box-shadow 0.2s",
               boxShadow: "0 4px 20px rgba(233, 69, 96, 0.4)",
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = "scale(1.05)";
-              e.currentTarget.style.boxShadow = "0 6px 30px rgba(233, 69, 96, 0.6)";
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.boxShadow = "0 4px 20px rgba(233, 69, 96, 0.4)";
+              minHeight: 48,
             }}
           >
             Solo Practice
@@ -160,24 +190,59 @@ export default function MainMenu({ onShowPrivacy }: { onShowPrivacy?: () => void
               fontSize: 16,
               fontWeight: 700,
               cursor: "pointer",
-              transition: "transform 0.2s, box-shadow 0.2s",
               boxShadow: "0 4px 20px rgba(66, 153, 225, 0.4)",
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = "scale(1.05)";
-              e.currentTarget.style.boxShadow = "0 6px 30px rgba(66, 153, 225, 0.6)";
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.boxShadow = "0 4px 20px rgba(66, 153, 225, 0.4)";
+              minHeight: 48,
             }}
           >
-            Multiplayer (6+ Players)
+            Multiplayer
           </button>
         </div>
 
+        <div style={{
+          display: "flex",
+          gap: 10,
+          justifyContent: "center",
+          marginTop: 20,
+          flexWrap: "wrap",
+        }}>
+          {onShowHistory && (
+            <button
+              onClick={onShowHistory}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#a0aec0",
+                padding: "10px 20px",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 14,
+                minHeight: 44,
+              }}
+            >
+              My History
+            </button>
+          )}
+          {onShowScoreboard && (
+            <button
+              onClick={onShowScoreboard}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#a0aec0",
+                padding: "10px 20px",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 14,
+                minHeight: 44,
+              }}
+            >
+              Scoreboard
+            </button>
+          )}
+        </div>
+
         <p style={{
-          marginTop: 24,
+          marginTop: 20,
           fontSize: 13,
           color: "#718096",
           lineHeight: 1.6,
@@ -187,7 +252,7 @@ export default function MainMenu({ onShowPrivacy }: { onShowPrivacy?: () => void
         </p>
 
         <div style={{
-          marginTop: 20,
+          marginTop: 16,
           display: "flex",
           gap: 16,
           justifyContent: "center",
@@ -204,9 +269,7 @@ export default function MainMenu({ onShowPrivacy }: { onShowPrivacy?: () => void
                 fontSize: 13,
                 padding: "12px 16px",
                 minHeight: 44,
-                minWidth: 44,
                 textDecoration: "underline",
-                WebkitTapHighlightColor: "transparent",
               }}
             >
               Privacy Policy

@@ -1,12 +1,38 @@
+import { useEffect, useRef } from "react";
 import { useToastmasters } from "@/lib/stores/useToastmasters";
+
+declare global {
+  interface Window { __lastSessionId?: number; }
+}
 
 export default function FeedbackScreen() {
   const {
     selectedRole, speechFeedback, points, level,
-    completedRoles, badges, goToMenu, goToRoleSelection,
+    completedRoles, badges, goToMenu, goToRoleSelection, timerSeconds,
   } = useToastmasters();
+  const savedRef = useRef(false);
 
   const latestCompletion = completedRoles[completedRoles.length - 1];
+
+  useEffect(() => {
+    if (savedRef.current || !latestCompletion) return;
+    savedRef.current = true;
+    fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        role: selectedRole,
+        score: latestCompletion.pointsEarned,
+        durationSeconds: timerSeconds || 0,
+        mode: "solo",
+      }),
+    }).then(r => r.json()).then(session => {
+      if (session?.id) {
+        window.__lastSessionId = session.id;
+      }
+    }).catch(() => {});
+  }, [latestCompletion]);
+
   const newlyEarned = badges.filter(b => b.earned && b.earnedDate === latestCompletion?.completedAt);
 
   const roleNames: Record<string, string> = {

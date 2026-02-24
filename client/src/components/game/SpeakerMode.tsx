@@ -280,7 +280,10 @@ export default function SpeakerMode() {
                 Download
               </button>
               <button
-                onClick={() => completeRole()}
+                onClick={() => {
+                  recorder.uploadRecording("speaker", timerSeconds);
+                  completeRole();
+                }}
                 style={{
                   background: "linear-gradient(135deg, #48bb78, #38a169)",
                   color: "white",

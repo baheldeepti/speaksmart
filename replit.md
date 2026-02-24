@@ -4,6 +4,7 @@
 A browser-based 3D game simulating a Toastmasters meeting where users can practice different meeting roles interactively in a virtual environment. Built with React Three Fiber for 3D rendering. Supports both solo practice and real-time multiplayer with 6+ players.
 
 ## Recent Changes
+- 2026-02-24: Added user authentication (register/login), game session persistence, recording uploads, scoreboard, and game history
 - 2026-02-24: Added audio recording to Speaker and Table Topics modes (record, playback, download)
 - 2026-02-24: Switched from Capacitor to Expo for App Store builds, pushed code to GitHub
 - 2026-02-24: Added multiplayer chat moderation, player blocking/reporting
@@ -12,18 +13,25 @@ A browser-based 3D game simulating a Toastmasters meeting where users can practi
 
 ## Project Architecture
 - **Frontend**: React + React Three Fiber + Zustand for state management
-- **Backend**: Express server (serves static files, WebSocket multiplayer)
+- **Backend**: Express server (serves static files, WebSocket multiplayer, REST API)
+- **Database**: PostgreSQL with Drizzle ORM (users, game_sessions, recordings tables)
+- **Auth**: Email/password with bcrypt hashing, express-session with PostgreSQL store
 - **Multiplayer**: WebSocket server (`server/multiplayer.ts`) handles rooms, role assignment, real-time sync
 - **Styling**: Inline styles for game UI, Tailwind CSS available for additional components
 - **State**: 
   - `useToastmasters` - Solo game state (roles, timers, gamification)
   - `useMultiplayer` - Multiplayer state (rooms, WebSocket, sync)
-- **Persistence**: LocalStorage for points, badges, and completed roles
+  - `useAuth` - Authentication state (user, login/register/logout)
+- **Persistence**: PostgreSQL for user accounts, game sessions, recordings; LocalStorage for local points/badges
 
 ## Key Files
-- `client/src/App.tsx` - Main app with solo/multiplayer routing
+- `client/src/App.tsx` - Main app with auth gating, solo/multiplayer routing
 - `client/src/lib/stores/useToastmasters.tsx` - Solo game state store
 - `client/src/lib/stores/useMultiplayer.tsx` - Multiplayer state store (WebSocket client)
+- `client/src/lib/stores/useAuth.tsx` - Auth state store (login/register/logout)
+- `shared/schema.ts` - Database schema (users, game_sessions, recordings)
+- `server/storage.ts` - Database storage layer with Drizzle queries
+- `server/routes.ts` - API routes (auth, sessions, recordings, scoreboard)
 - `server/multiplayer.ts` - WebSocket server for room management & game sync
 - `client/src/components/game/` - All game components:
   - `MainMenu.tsx` - Landing screen with Solo/Multiplayer buttons

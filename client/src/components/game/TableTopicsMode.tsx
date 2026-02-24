@@ -48,6 +48,7 @@ export default function TableTopicsMode() {
   };
 
   const handleComplete = () => {
+    recorder.uploadRecording("table_topics", timerSeconds);
     completeRole();
   };
 

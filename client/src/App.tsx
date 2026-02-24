@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useAudio } from "./lib/stores/useAudio";
 import { useToastmasters } from "./lib/stores/useToastmasters";
 import { useMultiplayer } from "./lib/stores/useMultiplayer";
+import { useAuth } from "./lib/stores/useAuth";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import "@fontsource/inter";
 
+import AuthScreen from "./components/game/AuthScreen";
 import MainMenu from "./components/game/MainMenu";
 import RoleSelection from "./components/game/RoleSelection";
 import GameScene from "./components/game/GameScene";
@@ -18,6 +20,8 @@ import AhCounterMode from "./components/game/AhCounterMode";
 import FeedbackScreen from "./components/game/FeedbackScreen";
 import MultiplayerLobby from "./components/game/MultiplayerLobby";
 import MultiplayerGame from "./components/game/MultiplayerGame";
+import GameHistory from "./components/game/GameHistory";
+import Scoreboard from "./components/game/Scoreboard";
 
 function RoleUI() {
   const selectedRole = useToastmasters(state => state.selectedRole);
@@ -44,7 +48,14 @@ function AppContent() {
   const phase = useToastmasters(state => state.phase);
   const { setBackgroundMusic, setHitSound, setSuccessSound } = useAudio();
   const { multiplayerMode, roomState } = useMultiplayer();
+  const { user, loading, checkAuth } = useAuth();
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showScoreboard, setShowScoreboard] = useState(false);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   useEffect(() => {
     const bgMusic = new Audio("/sounds/background.mp3");
@@ -61,8 +72,33 @@ function AppContent() {
     setSuccessSound(success);
   }, [setBackgroundMusic, setHitSound, setSuccessSound]);
 
+  if (loading) {
+    return (
+      <div style={{
+        width: "100vw", height: "100vh",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+        color: "#a0aec0", fontFamily: "'Inter', sans-serif",
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
   if (showPrivacy) {
     return <PrivacyPolicy onClose={() => setShowPrivacy(false)} />;
+  }
+
+  if (showHistory) {
+    return <GameHistory onBack={() => setShowHistory(false)} />;
+  }
+
+  if (showScoreboard) {
+    return <Scoreboard onBack={() => setShowScoreboard(false)} />;
   }
 
   if (multiplayerMode) {
@@ -79,7 +115,13 @@ function AppContent() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
-      {phase === "menu" && <MainMenu onShowPrivacy={() => setShowPrivacy(true)} />}
+      {phase === "menu" && (
+        <MainMenu
+          onShowPrivacy={() => setShowPrivacy(true)}
+          onShowHistory={() => setShowHistory(true)}
+          onShowScoreboard={() => setShowScoreboard(true)}
+        />
+      )}
       {phase === "role_selection" && <RoleSelection />}
       {phase === "playing" && (
         <>

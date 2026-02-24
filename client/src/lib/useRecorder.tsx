@@ -10,6 +10,7 @@ interface RecorderState {
   playRecording: () => void;
   stopPlayback: () => void;
   downloadRecording: (filename?: string) => void;
+  uploadRecording: (role: string, durationSeconds: number) => Promise<void>;
 }
 
 export function useRecorder(): RecorderState {
@@ -117,6 +118,25 @@ export function useRecorder(): RecorderState {
     []
   );
 
+  const uploadRecording = useCallback(
+    async (role: string, durationSeconds: number) => {
+      if (!audioUrlRef.current) return;
+      try {
+        const response = await fetch(audioUrlRef.current);
+        const blob = await response.blob();
+        const formData = new FormData();
+        formData.append("audio", blob, `${role}-recording.webm`);
+        formData.append("role", role);
+        formData.append("durationSeconds", String(durationSeconds));
+        if (window.__lastSessionId) {
+          formData.append("sessionId", String(window.__lastSessionId));
+        }
+        await fetch("/api/recordings", { method: "POST", body: formData });
+      } catch {}
+    },
+    []
+  );
+
   return {
     isRecording,
     hasRecording,
@@ -127,5 +147,6 @@ export function useRecorder(): RecorderState {
     playRecording,
     stopPlayback,
     downloadRecording,
+    uploadRecording,
   };
 }
