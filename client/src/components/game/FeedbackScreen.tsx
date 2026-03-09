@@ -1,36 +1,158 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToastmasters } from "@/lib/stores/useToastmasters";
+import RoleRubric, { type RoleRubricData } from "./RoleRubric";
 
 declare global {
-  interface Window { __lastSessionId?: number; }
+  interface Window {
+    __lastSessionId?: number;
+    __pendingRecordingBlob?: Blob;
+    __pendingRecordingRole?: string;
+    __pendingRecordingDuration?: number;
+    __pendingRoleEvaluation?: { role: string; metrics: any };
+  }
 }
 
 export default function FeedbackScreen() {
   const {
     selectedRole, speechFeedback, points, level,
     completedRoles, badges, goToMenu, goToRoleSelection, timerSeconds,
+    tableTopicPrompt, selectedPathwayProject,
   } = useToastmasters();
   const savedRef = useRef(false);
+  const [rubricData, setRubricData] = useState<RoleRubricData | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const latestCompletion = completedRoles[completedRoles.length - 1];
 
   useEffect(() => {
     if (savedRef.current || !latestCompletion) return;
     savedRef.current = true;
-    fetch("/api/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role: selectedRole,
-        score: latestCompletion.pointsEarned,
-        durationSeconds: timerSeconds || 0,
-        mode: "solo",
-      }),
-    }).then(r => r.json()).then(session => {
-      if (session?.id) {
-        window.__lastSessionId = session.id;
-      }
-    }).catch(() => {});
+
+    const saveAndEvaluate = async () => {
+      try {
+        const sessionRes = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            role: selectedRole,
+            score: latestCompletion.pointsEarned,
+            durationSeconds: timerSeconds || 0,
+            mode: "solo",
+          }),
+        });
+        const session = await sessionRes.json();
+        const sessionId = session?.id;
+        if (sessionId) {
+          window.__lastSessionId = sessionId;
+        }
+
+        if (window.__pendingRecordingBlob && sessionId) {
+          const formData = new FormData();
+          formData.append("audio", window.__pendingRecordingBlob, `${window.__pendingRecordingRole || selectedRole}-recording.webm`);
+          formData.append("role", window.__pendingRecordingRole || selectedRole || "unknown");
+          formData.append("durationSeconds", String(window.__pendingRecordingDuration || timerSeconds || 0));
+          formData.append("sessionId", String(sessionId));
+          await fetch("/api/recordings", { method: "POST", body: formData }).catch(() => {});
+          window.__pendingRecordingBlob = undefined;
+          window.__pendingRecordingRole = undefined;
+          window.__pendingRecordingDuration = undefined;
+        }
+
+        fetch("/api/engagement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventType: "session_complete",
+            role: selectedRole,
+            durationSeconds: timerSeconds || 0,
+          }),
+        }).catch(() => {});
+
+        if ((selectedRole === "speaker" || selectedRole === "table_topics") && sessionId) {
+          setAiLoading(true);
+          try {
+            const evalBody: any = {
+              sessionId,
+              role: selectedRole,
+              durationSeconds: timerSeconds || 0,
+            };
+            if (selectedRole === "table_topics" && tableTopicPrompt) {
+              evalBody.prompt = tableTopicPrompt;
+            }
+            if (selectedPathwayProject) {
+              evalBody.pathwaysProject = {
+                name: selectedPathwayProject.projectName,
+                objectives: selectedPathwayProject.objectives,
+                timeMin: selectedPathwayProject.minMinutes,
+                timeMax: selectedPathwayProject.maxMinutes,
+              };
+            }
+            const evalRes = await fetch("/api/evaluate-speech", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(evalBody),
+            });
+            if (evalRes.ok) {
+              const evalData = await evalRes.json();
+              const rubric = evalData.rubric as any;
+              if (rubric?.metrics) {
+                setRubricData({
+                  role: selectedRole,
+                  overallScore: (evalData.overallScore || 50) / 10,
+                  metrics: rubric.metrics.map((m: any) => ({
+                    label: m.label,
+                    score: m.score,
+                    maxScore: m.maxScore,
+                  })),
+                  feedback: evalData.aiFeedback || evalData.ai_feedback,
+                  transcript: evalData.transcript,
+                });
+              }
+            } else {
+              setAiError("Could not analyze speech - recording may be too short");
+            }
+          } catch {
+            setAiError("AI evaluation unavailable");
+          }
+          setAiLoading(false);
+        } else if (selectedRole && sessionId && window.__pendingRoleEvaluation) {
+          try {
+            const pending = window.__pendingRoleEvaluation;
+            window.__pendingRoleEvaluation = undefined;
+            const evalRes = await fetch("/api/evaluate-role", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                role: pending.role,
+                sessionId,
+                metrics: pending.metrics,
+              }),
+            });
+            if (evalRes.ok) {
+              const evalData = await evalRes.json();
+              const metrics = Array.isArray(evalData.metrics)
+                ? evalData.metrics
+                : [];
+              if (metrics.length > 0) {
+                setRubricData({
+                  role: selectedRole,
+                  overallScore: (evalData.overallScore || 50) / 10,
+                  metrics: metrics.map((m: any) => ({
+                    label: m.label,
+                    score: m.score,
+                    maxScore: m.maxScore,
+                  })),
+                  feedback: evalData.feedback,
+                });
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+    };
+
+    saveAndEvaluate();
   }, [latestCompletion]);
 
   const newlyEarned = badges.filter(b => b.earned && b.earnedDate === latestCompletion?.completedAt);
@@ -105,7 +227,54 @@ export default function FeedbackScreen() {
           </div>
         </div>
 
-        {speechFeedback && (
+        {aiLoading && (
+          <div style={{
+            background: "rgba(66, 153, 225, 0.1)",
+            borderRadius: 16,
+            padding: "20px",
+            marginBottom: 20,
+            border: "1px solid rgba(66, 153, 225, 0.3)",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 14, color: "#63b3ed" }}>
+              Analyzing your speech with AI...
+            </div>
+            <div style={{
+              width: "60%",
+              height: 4,
+              background: "rgba(255,255,255,0.1)",
+              borderRadius: 2,
+              margin: "12px auto 0",
+              overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%",
+                width: "60%",
+                background: "#63b3ed",
+                borderRadius: 2,
+                animation: "slideRight 1.5s ease-in-out infinite",
+              }} />
+            </div>
+          </div>
+        )}
+
+        {rubricData && <RoleRubric data={rubricData} />}
+
+        {aiError && (
+          <div style={{
+            background: "rgba(245, 166, 35, 0.1)",
+            borderRadius: 12,
+            padding: "12px 16px",
+            marginBottom: 20,
+            border: "1px solid rgba(245, 166, 35, 0.3)",
+            fontSize: 13,
+            color: "#fbd38d",
+          }}>
+            {aiError}
+          </div>
+        )}
+
+        {speechFeedback && !rubricData && !aiLoading && (
           <div style={{
             background: "rgba(255,255,255,0.05)",
             borderRadius: 16,
@@ -217,6 +386,14 @@ export default function FeedbackScreen() {
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes slideRight {
+          0% { transform: translateX(-100%); }
+          50% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+      `}</style>
     </div>
   );
 }

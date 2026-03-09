@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToastmasters } from "@/lib/stores/useToastmasters";
 import { useAudio } from "@/lib/stores/useAudio";
 
@@ -8,6 +8,9 @@ export default function AhCounterMode() {
   const { ahCounterCount, incrementAhCounter, resetAhCounter, completeRole, goToMenu } = useToastmasters();
   const { playHit, playSuccess } = useAudio();
   const [fillerCounts, setFillerCounts] = useState<Record<string, number>>({});
+  const sessionStartRef = useRef<number>(Date.now());
+  const trackingTimestampsRef = useRef<number[]>([]);
+
 
   const handleCount = (word: string) => {
     incrementAhCounter();
@@ -16,10 +19,21 @@ export default function AhCounterMode() {
       [word]: (prev[word] || 0) + 1,
     }));
     playHit();
+    trackingTimestampsRef.current.push(Date.now() - sessionStartRef.current);
   };
 
   const handleComplete = () => {
     playSuccess();
+    const sessionDuration = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    window.__pendingRoleEvaluation = {
+      role: "ah_counter",
+      metrics: {
+        totalCount: ahCounterCount,
+        categoryCounts: fillerCounts,
+        sessionDuration: sessionDuration * 1000,
+        trackingTimestamps: trackingTimestampsRef.current,
+      },
+    };
     completeRole();
   };
 

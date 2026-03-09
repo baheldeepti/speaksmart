@@ -52,6 +52,11 @@ export const useAuth = create<AuthState>((set) => ({
         const meRes = await fetch("/api/auth/me");
         const user = await meRes.json();
         set({ user, error: null });
+        fetch("/api/engagement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ eventType: "login" }),
+        }).catch(() => {});
         return true;
       } else {
         set({ error: data.message });

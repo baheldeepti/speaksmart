@@ -16,6 +16,14 @@ export interface RoomInfo {
   minPlayers: number;
 }
 
+export interface AggregatedRatings {
+  clarity: number;
+  storytelling: number;
+  confidence: number;
+  totalRaters: number;
+  ratings: { playerId: string; playerName: string; clarity: number; storytelling: number; confidence: number }[];
+}
+
 export interface RoomState {
   id: string;
   name: string;
@@ -29,6 +37,8 @@ export interface RoomState {
   tableTopicPrompt: string;
   audienceReaction: string;
   speakerActive: boolean;
+  ratingOpen: boolean;
+  aggregatedRatings: AggregatedRatings | null;
 }
 
 export interface ChatMessage {
@@ -72,6 +82,7 @@ interface MultiplayerState {
   sendGrammarianNote: (note: string) => void;
   sendAhCounterUpdate: (count: number, word: string) => void;
   sendEvaluation: (checklist: any[], score: number) => void;
+  sendAudienceRating: (clarity: number, storytelling: number, confidence: number) => void;
   endMeeting: () => void;
   returnToLobby: () => void;
 
@@ -175,6 +186,18 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
                   },
                 ].slice(-50),
               }));
+              break;
+
+            case "audience_ratings_updated":
+              set((state) => {
+                if (!state.roomState) return {};
+                return {
+                  roomState: {
+                    ...state.roomState,
+                    aggregatedRatings: msg.aggregatedRatings,
+                  },
+                };
+              });
               break;
 
             case "left_room":
@@ -282,6 +305,10 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
 
     sendEvaluation: (checklist, score) => {
       send({ type: "evaluation_submit", checklist, score });
+    },
+
+    sendAudienceRating: (clarity, storytelling, confidence) => {
+      send({ type: "audience_rating", clarity, storytelling, confidence });
     },
 
     endMeeting: () => {

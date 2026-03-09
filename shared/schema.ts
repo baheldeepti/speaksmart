@@ -32,6 +32,44 @@ export const recordings = pgTable("recordings", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const speechEvaluations = pgTable("speech_evaluations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  sessionId: integer("session_id").references(() => gameSessions.id),
+  transcript: text("transcript"),
+  fillerWordCount: integer("filler_word_count").default(0),
+  speechPaceWPM: integer("speech_pace_wpm").default(0),
+  clarityScore: integer("clarity_score").default(0),
+  structureScore: integer("structure_score").default(0),
+  confidenceScore: integer("confidence_score").default(0),
+  engagementScore: integer("engagement_score").default(0),
+  overallScore: integer("overall_score").default(0),
+  aiFeedback: text("ai_feedback"),
+  rubric: jsonb("rubric"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const roleEvaluations = pgTable("role_evaluations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  sessionId: integer("session_id").references(() => gameSessions.id),
+  role: text("role").notNull(),
+  metrics: jsonb("metrics"),
+  overallScore: integer("overall_score").default(0),
+  feedback: text("feedback"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const engagementEvents = pgTable("engagement_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  eventType: text("event_type").notNull(),
+  role: text("role"),
+  durationSeconds: integer("duration_seconds").default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
@@ -53,3 +91,6 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type GameSession = typeof gameSessions.$inferSelect;
 export type Recording = typeof recordings.$inferSelect;
+export type SpeechEvaluation = typeof speechEvaluations.$inferSelect;
+export type RoleEvaluation = typeof roleEvaluations.$inferSelect;
+export type EngagementEvent = typeof engagementEvents.$inferSelect;

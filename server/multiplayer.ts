@@ -12,6 +12,22 @@ export interface Player {
   ws: WebSocket;
 }
 
+export interface AudienceRating {
+  playerId: string;
+  playerName: string;
+  clarity: number;
+  storytelling: number;
+  confidence: number;
+}
+
+export interface AggregatedRatings {
+  clarity: number;
+  storytelling: number;
+  confidence: number;
+  totalRaters: number;
+  ratings: AudienceRating[];
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -25,6 +41,9 @@ export interface Room {
   tableTopicPrompt: string;
   audienceReaction: string;
   speakerActive: boolean;
+  audienceRatings: AudienceRating[];
+  aggregatedRatings: AggregatedRatings | null;
+  ratingOpen: boolean;
 }
 
 const TABLE_TOPIC_PROMPTS = [
@@ -98,6 +117,8 @@ function getRoomState(room: Room) {
       tableTopicPrompt: room.tableTopicPrompt,
       audienceReaction: room.audienceReaction,
       speakerActive: room.speakerActive,
+      ratingOpen: room.ratingOpen,
+      aggregatedRatings: room.aggregatedRatings,
     },
   };
 }
@@ -174,6 +195,9 @@ export function setupMultiplayer(server: Server) {
               tableTopicPrompt: TABLE_TOPIC_PROMPTS[Math.floor(Math.random() * TABLE_TOPIC_PROMPTS.length)],
               audienceReaction: "neutral",
               speakerActive: false,
+              audienceRatings: [],
+              aggregatedRatings: null,
+              ratingOpen: false,
             };
 
             rooms.set(roomId, room);
@@ -398,6 +422,9 @@ export function setupMultiplayer(server: Server) {
 
             room.speakerActive = false;
             room.audienceReaction = "applause";
+            room.ratingOpen = true;
+            room.audienceRatings = [];
+            room.aggregatedRatings = null;
             broadcastToRoom(room, getRoomState(room));
 
             setTimeout(() => {
@@ -463,6 +490,56 @@ export function setupMultiplayer(server: Server) {
             break;
           }
 
+          case "audience_rating": {
+            if (!currentRoomId) return;
+            const room = rooms.get(currentRoomId);
+            if (!room || !room.ratingOpen) return;
+
+            const ratingPlayer = room.players.get(playerId);
+            if (!ratingPlayer) return;
+            if (ratingPlayer.role === "speaker" || ratingPlayer.role === "table_topics") return;
+
+            const alreadyRated = room.audienceRatings.some(r => r.playerId === playerId);
+            if (alreadyRated) return;
+
+            const clamp = (v: number) => Math.max(1, Math.min(5, Math.round(v)));
+            const rating: AudienceRating = {
+              playerId,
+              playerName: ratingPlayer.name,
+              clarity: clamp(msg.clarity),
+              storytelling: clamp(msg.storytelling),
+              confidence: clamp(msg.confidence),
+            };
+
+            room.audienceRatings.push(rating);
+            log(`${ratingPlayer.name} submitted audience rating in room ${currentRoomId}`, "ws");
+
+            const ratings = room.audienceRatings;
+            const avgClarity = ratings.reduce((s, r) => s + r.clarity, 0) / ratings.length;
+            const avgStorytelling = ratings.reduce((s, r) => s + r.storytelling, 0) / ratings.length;
+            const avgConfidence = ratings.reduce((s, r) => s + r.confidence, 0) / ratings.length;
+
+            room.aggregatedRatings = {
+              clarity: Math.round(avgClarity * 10) / 10,
+              storytelling: Math.round(avgStorytelling * 10) / 10,
+              confidence: Math.round(avgConfidence * 10) / 10,
+              totalRaters: ratings.length,
+              ratings: ratings.map(r => ({
+                playerId: r.playerId,
+                playerName: r.playerName,
+                clarity: r.clarity,
+                storytelling: r.storytelling,
+                confidence: r.confidence,
+              })),
+            };
+
+            broadcastToRoom(room, {
+              type: "audience_ratings_updated",
+              aggregatedRatings: room.aggregatedRatings,
+            });
+            break;
+          }
+
           case "end_meeting": {
             if (!currentRoomId) return;
             const room = rooms.get(currentRoomId);
@@ -487,6 +564,9 @@ export function setupMultiplayer(server: Server) {
             room.timerRunning = false;
             room.speakerActive = false;
             room.audienceReaction = "neutral";
+            room.audienceRatings = [];
+            room.aggregatedRatings = null;
+            room.ratingOpen = false;
             room.players.forEach((p) => {
               p.role = null;
               p.ready = false;

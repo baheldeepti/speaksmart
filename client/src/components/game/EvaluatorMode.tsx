@@ -11,6 +11,8 @@ export default function EvaluatorMode() {
   const [phase, setPhase] = useState<"watching" | "evaluating" | "summary">("watching");
   const [watchProgress, setWatchProgress] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const evaluateStartRef = useRef<number>(0);
+
 
   useEffect(() => {
     if (phase === "watching") {
@@ -20,6 +22,7 @@ export default function EvaluatorMode() {
           if (prev >= 100) {
             clearInterval(intervalRef.current!);
             setPhase("evaluating");
+            evaluateStartRef.current = Date.now();
             return 100;
           }
           return prev + 2;
@@ -37,6 +40,19 @@ export default function EvaluatorMode() {
 
   const handleSubmit = () => {
     playSuccess();
+    const timeSpent = evaluateStartRef.current > 0 ? Math.round((Date.now() - evaluateStartRef.current) / 1000) : 30;
+    const positiveItems = evaluationChecklist.filter(i => i.checked);
+    const constructiveItems = evaluationChecklist.filter(i => !i.checked);
+    window.__pendingRoleEvaluation = {
+      role: "evaluator",
+      metrics: {
+        checklistTotal: evaluationChecklist.length,
+        checklistChecked: checkedCount,
+        timeSpentSeconds: timeSpent,
+        positiveCount: positiveItems.length,
+        constructiveCount: constructiveItems.length,
+      },
+    };
     setPhase("summary");
   };
 
@@ -134,6 +150,7 @@ export default function EvaluatorMode() {
             onClick={() => {
               if (intervalRef.current) clearInterval(intervalRef.current);
               setPhase("evaluating");
+              evaluateStartRef.current = Date.now();
             }}
             style={{
               marginTop: 16,

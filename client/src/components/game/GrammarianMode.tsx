@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useToastmasters } from "@/lib/stores/useToastmasters";
 import { useAudio } from "@/lib/stores/useAudio";
 
@@ -22,17 +22,34 @@ export default function GrammarianMode() {
   const [noteInput, setNoteInput] = useState("");
   const [noteType, setNoteType] = useState<"good" | "improve">("good");
   const wordOfDay = useMemo(() => getWordOfDay(), []);
+  const sessionStartRef = useRef<number>(Date.now());
+  const noteTimingsRef = useRef<number[]>([]);
+
 
   const handleAddNote = () => {
     if (noteInput.trim()) {
       addGrammarianNote(`[${noteType === "good" ? "+" : "-"}] ${noteInput.trim()}`);
       setNoteInput("");
       playHit();
+      noteTimingsRef.current.push(Date.now() - sessionStartRef.current);
     }
   };
 
   const handleComplete = () => {
     playSuccess();
+    const sessionDuration = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    const goodCount = grammarianNotes.filter(n => n.startsWith("[+]")).length;
+    const improveCount = grammarianNotes.filter(n => n.startsWith("[-]")).length;
+    const uniqueTypes = (goodCount > 0 ? 1 : 0) + (improveCount > 0 ? 1 : 0);
+    window.__pendingRoleEvaluation = {
+      role: "grammarian",
+      metrics: {
+        noteCount: grammarianNotes.length,
+        uniqueTypes: uniqueTypes + Math.min(grammarianNotes.length, 3),
+        sessionDuration: sessionDuration * 1000,
+        noteTiming: noteTimingsRef.current,
+      },
+    };
     completeRole();
   };
 

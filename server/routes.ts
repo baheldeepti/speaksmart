@@ -185,7 +185,7 @@ export async function registerRoutes(
   app.get("/api/recordings/:id/audio", requireAuth, async (req, res) => {
     try {
       const recs = await storage.getUserRecordings(req.session.userId!);
-      const rec = recs.find(r => r.id === parseInt(req.params.id));
+      const rec = recs.find(r => r.id === parseInt(req.params.id as string));
       if (!rec) {
         return res.status(404).json({ message: "Recording not found" });
       }
@@ -204,6 +204,179 @@ export async function registerRoutes(
   app.get("/api/scoreboard", async (_req, res) => {
     const scoreboard = await storage.getScoreboard(50);
     res.json(scoreboard);
+  });
+
+  app.post("/api/evaluate-speech", requireAuth, async (req, res) => {
+    try {
+      const { recordingId, sessionId, role, prompt, pathwaysProject } = req.body;
+
+      let audioFilePath: string | null = null;
+      let durationSeconds = 0;
+
+      if (recordingId) {
+        const recs = await storage.getUserRecordings(req.session.userId!);
+        const rec = recs.find(r => r.id === parseInt(recordingId));
+        if (!rec) {
+          return res.status(404).json({ message: "Recording not found" });
+        }
+        audioFilePath = path.join(uploadDir, rec.filename);
+        durationSeconds = rec.durationSeconds;
+      } else if (sessionId) {
+        const recs = await storage.getUserRecordings(req.session.userId!);
+        const rec = recs.find(r => r.sessionId === parseInt(sessionId));
+        if (!rec) {
+          return res.status(404).json({ message: "No recording found for this session" });
+        }
+        audioFilePath = path.join(uploadDir, rec.filename);
+        durationSeconds = rec.durationSeconds;
+      }
+
+      if (!audioFilePath || !fs.existsSync(audioFilePath)) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+
+      const { transcribeAndAnalyze } = await import("./speechAnalysis");
+      const evaluation = await transcribeAndAnalyze(
+        audioFilePath,
+        durationSeconds || req.body.durationSeconds || 0,
+        role || "speaker",
+        prompt,
+        pathwaysProject
+      );
+
+      let verifiedSessionId: number | undefined;
+      if (sessionId) {
+        const sessions = await storage.getUserSessions(req.session.userId!, 1000);
+        if (sessions.some(s => s.id === parseInt(sessionId))) {
+          verifiedSessionId = parseInt(sessionId);
+        }
+      }
+
+      const saved = await storage.createSpeechEvaluation({
+        userId: req.session.userId!,
+        sessionId: verifiedSessionId,
+        transcript: evaluation.transcript,
+        fillerWordCount: evaluation.fillerWordCount,
+        speechPaceWPM: evaluation.speechPaceWPM,
+        clarityScore: evaluation.clarityScore,
+        structureScore: evaluation.structureScore,
+        confidenceScore: evaluation.confidenceScore,
+        engagementScore: evaluation.engagementScore,
+        overallScore: evaluation.overallScore,
+        aiFeedback: evaluation.aiFeedback,
+        rubric: evaluation.rubric,
+      });
+
+      res.json({ ...saved, rubric: evaluation.rubric });
+    } catch (err: any) {
+      console.error("Speech evaluation error:", err);
+      res.status(500).json({ message: "Failed to evaluate speech" });
+    }
+  });
+
+  app.post("/api/evaluate-role", requireAuth, async (req, res) => {
+    try {
+      const { role, sessionId, metrics } = req.body;
+
+      if (!role || !metrics) {
+        return res.status(400).json({ message: "Role and metrics are required" });
+      }
+
+      let evaluation;
+      const { evaluateTimerRole, evaluateEvaluatorRole, evaluateGrammarianRole, evaluateAhCounterRole } = await import("./speechAnalysis");
+
+      switch (role) {
+        case "timer":
+          evaluation = evaluateTimerRole(metrics);
+          break;
+        case "evaluator":
+          evaluation = evaluateEvaluatorRole(metrics);
+          break;
+        case "grammarian":
+          evaluation = evaluateGrammarianRole(metrics);
+          break;
+        case "ah_counter":
+          evaluation = evaluateAhCounterRole(metrics);
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid role for evaluation" });
+      }
+
+      let verifiedSessionId: number | undefined;
+      if (sessionId) {
+        const sessions = await storage.getUserSessions(req.session.userId!, 1000);
+        if (sessions.some(s => s.id === parseInt(sessionId))) {
+          verifiedSessionId = parseInt(sessionId);
+        }
+      }
+
+      const saved = await storage.createRoleEvaluation({
+        userId: req.session.userId!,
+        sessionId: verifiedSessionId,
+        role,
+        metrics: evaluation.metrics,
+        overallScore: evaluation.overallScore,
+        feedback: evaluation.feedback,
+      });
+
+      res.json({ ...saved, metrics: evaluation.metrics, feedback: evaluation.feedback });
+    } catch (err: any) {
+      console.error("Role evaluation error:", err);
+      res.status(500).json({ message: "Failed to evaluate role" });
+    }
+  });
+
+  app.get("/api/evaluations/:sessionId", requireAuth, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.sessionId as string);
+      const sessions = await storage.getUserSessions(req.session.userId!, 1000);
+      const ownsSession = sessions.some(s => s.id === sessionId);
+      if (!ownsSession) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const speechEval = await storage.getSessionEvaluation(sessionId);
+      const roleEval = await storage.getSessionRoleEvaluation(sessionId);
+      res.json({ speechEvaluation: speechEval || null, roleEvaluation: roleEval || null });
+    } catch {
+      res.status(500).json({ message: "Failed to fetch evaluation" });
+    }
+  });
+
+  app.get("/api/progress", requireAuth, async (req, res) => {
+    try {
+      const progressData = await storage.getUserProgressData(req.session.userId!);
+      res.json({
+        roleEvaluations: progressData.roleEvals,
+        speechEvaluations: progressData.speechEvals,
+      });
+    } catch {
+      res.status(500).json({ message: "Failed to fetch progress data" });
+    }
+  });
+
+  app.post("/api/engagement", requireAuth, async (req, res) => {
+    try {
+      const { eventType, role, durationSeconds, metadata } = req.body;
+      const event = await storage.createEngagementEvent({
+        userId: req.session.userId!,
+        eventType,
+        role,
+        durationSeconds,
+        metadata,
+      });
+      res.json(event);
+    } catch {
+      res.status(500).json({ message: "Failed to log engagement event" });
+    }
+  });
+
+  app.get("/api/engagement/stats", requireAuth, async (req, res) => {
+    try {
+      const stats = await storage.getUserEngagementStats(req.session.userId!);
+      res.json(stats);
+    } catch {
+      res.status(500).json({ message: "Failed to fetch engagement stats" });
+    }
   });
 
   return httpServer;

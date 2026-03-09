@@ -622,6 +622,130 @@ function MultiplayerAhCounterView() {
   );
 }
 
+function AudienceRatingForm() {
+  const { roomState, playerId, sendAudienceRating } = useMultiplayer();
+  const { playSuccess } = useAudio();
+  const [clarity, setClarity] = useState(0);
+  const [storytelling, setStorytelling] = useState(0);
+  const [confidence, setConfidence] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+
+  if (!roomState || !roomState.ratingOpen) return null;
+  const myPlayer = roomState.players.find(p => p.id === playerId);
+  if (!myPlayer) return null;
+  if (myPlayer.role === "speaker" || myPlayer.role === "table_topics") return null;
+
+  if (submitted) {
+    return (
+      <div style={{
+        position: "absolute",
+        bottom: 80,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 65,
+        background: "rgba(0,0,0,0.9)",
+        borderRadius: 16,
+        padding: "16px 24px",
+        color: "white",
+        border: "1px solid rgba(72,187,120,0.3)",
+        textAlign: "center",
+      }}>
+        <div style={{ fontSize: 13, color: "#48bb78", fontWeight: 600 }}>Rating Submitted!</div>
+        {roomState.aggregatedRatings && (
+          <div style={{ fontSize: 11, color: "#a0aec0", marginTop: 6 }}>
+            {roomState.aggregatedRatings.totalRaters} rating{roomState.aggregatedRatings.totalRaters !== 1 ? "s" : ""} so far
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const StarRow = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: "#a0aec0", marginBottom: 4, fontWeight: 600 }}>{label}</div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {[1, 2, 3, 4, 5].map(star => (
+          <button
+            key={star}
+            onClick={() => onChange(star)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 22,
+              padding: "2px",
+              filter: star <= value ? "none" : "grayscale(1) opacity(0.3)",
+              transition: "transform 0.1s",
+              transform: star <= value ? "scale(1.1)" : "scale(1)",
+            }}
+          >
+            ⭐
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const allRated = clarity > 0 && storytelling > 0 && confidence > 0;
+
+  return (
+    <div style={{
+      position: "absolute",
+      bottom: 80,
+      left: "50%",
+      transform: "translateX(-50%)",
+      zIndex: 65,
+    }}>
+      <div style={{
+        background: "rgba(0,0,0,0.95)",
+        borderRadius: 16,
+        padding: "20px 24px",
+        color: "white",
+        border: "1px solid rgba(245,166,35,0.3)",
+        minWidth: 240,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#f5a623", marginBottom: 4, textAlign: "center" }}>
+          Rate the Speaker
+        </div>
+        <div style={{ fontSize: 10, color: "#a0aec0", marginBottom: 14, textAlign: "center" }}>
+          Tap stars to rate
+        </div>
+
+        <StarRow label="Clarity" value={clarity} onChange={setClarity} />
+        <StarRow label="Storytelling" value={storytelling} onChange={setStorytelling} />
+        <StarRow label="Confidence" value={confidence} onChange={setConfidence} />
+
+        <button
+          onClick={() => {
+            if (allRated) {
+              sendAudienceRating(clarity, storytelling, confidence);
+              playSuccess();
+              setSubmitted(true);
+            }
+          }}
+          disabled={!allRated}
+          style={{
+            width: "100%",
+            marginTop: 4,
+            background: allRated
+              ? "linear-gradient(135deg, #f5a623, #e8961e)"
+              : "rgba(255,255,255,0.05)",
+            color: allRated ? "white" : "#555",
+            border: "none",
+            padding: "10px",
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: allRated ? "pointer" : "default",
+          }}
+        >
+          Submit Rating
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function MultiplayerObserverView() {
   const { roomState, playerId } = useMultiplayer();
   if (!roomState) return null;
@@ -702,6 +826,58 @@ function MultiplayerFeedback() {
         ))}
       </div>
 
+      {roomState.aggregatedRatings && roomState.aggregatedRatings.totalRaters > 0 && (
+        <div style={{
+          background: "rgba(255,255,255,0.05)",
+          borderRadius: 16,
+          padding: "20px",
+          maxWidth: 400,
+          width: "90%",
+          marginBottom: 20,
+          border: "1px solid rgba(245,166,35,0.2)",
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "#f5a623" }}>
+            Audience Ratings ({roomState.aggregatedRatings.totalRaters} rater{roomState.aggregatedRatings.totalRaters !== 1 ? "s" : ""})
+          </div>
+          {[
+            { label: "Clarity", value: roomState.aggregatedRatings.clarity },
+            { label: "Storytelling", value: roomState.aggregatedRatings.storytelling },
+            { label: "Confidence", value: roomState.aggregatedRatings.confidence },
+          ].map(metric => (
+            <div key={metric.label} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)",
+            }}>
+              <span style={{ fontSize: 13, color: "#e2e8f0" }}>{metric.label}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{
+                  width: 100, height: 6, background: "rgba(255,255,255,0.1)",
+                  borderRadius: 3, overflow: "hidden",
+                }}>
+                  <div style={{
+                    width: `${(metric.value / 5) * 100}%`,
+                    height: "100%",
+                    background: metric.value >= 4 ? "#48bb78" : metric.value >= 3 ? "#f5a623" : "#e94560",
+                    borderRadius: 3,
+                  }} />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "white", minWidth: 30, textAlign: "right" }}>
+                  {metric.value.toFixed(1)}
+                </span>
+              </div>
+            </div>
+          ))}
+          <div style={{
+            marginTop: 10, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#f5a623",
+          }}>
+            {((roomState.aggregatedRatings.clarity + roomState.aggregatedRatings.storytelling + roomState.aggregatedRatings.confidence) / 3).toFixed(1)} / 5.0
+          </div>
+          <div style={{ textAlign: "center", fontSize: 10, color: "#a0aec0", marginTop: 2 }}>
+            Overall Average
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 12 }}>
         {isHost && (
           <button onClick={returnToLobby} style={{
@@ -753,6 +929,7 @@ export default function MultiplayerGame() {
       {myPlayer?.role === "evaluator" && <MultiplayerEvaluatorView />}
       {myPlayer?.role === "grammarian" && <MultiplayerGrammarianView />}
       {myPlayer?.role === "ah_counter" && <MultiplayerAhCounterView />}
+      <AudienceRatingForm />
     </div>
   );
 }

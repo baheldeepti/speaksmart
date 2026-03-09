@@ -7,9 +7,11 @@ interface MainMenuProps {
   onShowPrivacy?: () => void;
   onShowHistory?: () => void;
   onShowScoreboard?: () => void;
+  onShowProgress?: () => void;
+  onShowEngagement?: () => void;
 }
 
-export default function MainMenu({ onShowPrivacy, onShowHistory, onShowScoreboard }: MainMenuProps) {
+export default function MainMenu({ onShowPrivacy, onShowHistory, onShowScoreboard, onShowProgress, onShowEngagement }: MainMenuProps) {
   const { goToRoleSelection, points, level, completedRoles, badges } = useToastmasters();
   const { toggleMute, isMuted } = useAudio();
   const { setMultiplayerMode } = useMultiplayer();
@@ -237,6 +239,40 @@ export default function MainMenu({ onShowPrivacy, onShowHistory, onShowScoreboar
               }}
             >
               Scoreboard
+            </button>
+          )}
+          {onShowProgress && (
+            <button
+              onClick={onShowProgress}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#a0aec0",
+                padding: "10px 20px",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 14,
+                minHeight: 44,
+              }}
+            >
+              My Progress
+            </button>
+          )}
+          {onShowEngagement && (
+            <button
+              onClick={onShowEngagement}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#a0aec0",
+                padding: "10px 20px",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 14,
+                minHeight: 44,
+              }}
+            >
+              Engagement
             </button>
           )}
         </div>

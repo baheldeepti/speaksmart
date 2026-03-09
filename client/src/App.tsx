@@ -22,6 +22,8 @@ import MultiplayerLobby from "./components/game/MultiplayerLobby";
 import MultiplayerGame from "./components/game/MultiplayerGame";
 import GameHistory from "./components/game/GameHistory";
 import Scoreboard from "./components/game/Scoreboard";
+import ProgressTracker from "./components/game/ProgressTracker";
+import EngagementDashboard from "./components/game/EngagementDashboard";
 
 function RoleUI() {
   const selectedRole = useToastmasters(state => state.selectedRole);
@@ -52,6 +54,8 @@ function AppContent() {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showScoreboard, setShowScoreboard] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
+  const [showEngagement, setShowEngagement] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -101,6 +105,14 @@ function AppContent() {
     return <Scoreboard onBack={() => setShowScoreboard(false)} />;
   }
 
+  if (showProgress) {
+    return <ProgressTracker onBack={() => setShowProgress(false)} />;
+  }
+
+  if (showEngagement) {
+    return <EngagementDashboard onBack={() => setShowEngagement(false)} />;
+  }
+
   if (multiplayerMode) {
     if (!roomState || roomState.phase === "lobby" || roomState.phase === "role_assignment") {
       return (
@@ -120,6 +132,8 @@ function AppContent() {
           onShowPrivacy={() => setShowPrivacy(true)}
           onShowHistory={() => setShowHistory(true)}
           onShowScoreboard={() => setShowScoreboard(true)}
+          onShowProgress={() => setShowProgress(true)}
+          onShowEngagement={() => setShowEngagement(true)}
         />
       )}
       {phase === "role_selection" && <RoleSelection />}

@@ -12,6 +12,9 @@ export default function TimerRole() {
   const [greenPlayed, setGreenPlayed] = useState(false);
   const [yellowPlayed, setYellowPlayed] = useState(false);
   const [redPlayed, setRedPlayed] = useState(false);
+  const [stopCount, setStopCount] = useState(0);
+  const startTimeRef = useRef<number>(0);
+
 
   const greenThreshold = Math.floor(maxTime * 0.5);
   const yellowThreshold = Math.floor(maxTime * 0.75);
@@ -63,10 +66,14 @@ export default function TimerRole() {
     setGreenPlayed(false);
     setYellowPlayed(false);
     setRedPlayed(false);
+    if (startTimeRef.current === 0) {
+      startTimeRef.current = Date.now();
+    }
   };
 
   const handleStop = () => {
     setRunning(false);
+    setStopCount(prev => prev + 1);
   };
 
   const handleReset = () => {
@@ -79,6 +86,19 @@ export default function TimerRole() {
 
   const handleComplete = () => {
     playSuccess();
+    const accuracyPercent = Math.min(100, Math.round((seconds / maxTime) * 100));
+    window.__pendingRoleEvaluation = {
+      role: "timer",
+      metrics: {
+        totalDuration: seconds,
+        timerStartDelay: 0,
+        numberOfStops: stopCount,
+        greenSignaled: greenPlayed,
+        yellowSignaled: yellowPlayed,
+        redSignaled: redPlayed,
+        accuracyPercent,
+      },
+    };
     completeRole();
   };
 

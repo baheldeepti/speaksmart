@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useToastmasters } from "@/lib/stores/useToastmasters";
+import { useToastmasters, TABLE_TOPIC_CATEGORIES, TABLE_TOPIC_DIFFICULTIES } from "@/lib/stores/useToastmasters";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useRecorder } from "@/lib/useRecorder";
 
@@ -8,12 +8,15 @@ export default function TableTopicsMode() {
     timerSeconds, timerRunning, timerMaxSeconds,
     startTimer, tickTimer, stopTimer, completeRole,
     tableTopicPrompt, generateTableTopic, goToMenu,
+    tableTopicCategory, tableTopicDifficulty, tableTopicCurrentPrompt,
+    setTableTopicCategory, setTableTopicDifficulty,
   } = useToastmasters();
   const { playSuccess } = useAudio();
   const recorder = useRecorder();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [started, setStarted] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(true);
 
   useEffect(() => {
     if (timerRunning) {
@@ -47,13 +50,26 @@ export default function TableTopicsMode() {
     playSuccess();
   };
 
-  const handleComplete = () => {
-    recorder.uploadRecording("table_topics", timerSeconds);
+  const handleComplete = async () => {
+    if (recorder.audioUrl) {
+      try {
+        const res = await fetch(recorder.audioUrl);
+        const blob = await res.blob();
+        window.__pendingRecordingBlob = blob;
+        window.__pendingRecordingRole = "table_topics";
+        window.__pendingRecordingDuration = timerSeconds;
+      } catch {}
+    }
     completeRole();
   };
 
   const handleNewPrompt = () => {
     generateTableTopic();
+  };
+
+  const handleCategoryConfirm = () => {
+    generateTableTopic();
+    setShowCategoryPicker(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -67,6 +83,181 @@ export default function TableTopicsMode() {
     if (timerSeconds < 90) return "#f5a623";
     return "#e94560";
   };
+
+  const getDifficultyInfo = () => {
+    if (!tableTopicCurrentPrompt) return null;
+    return TABLE_TOPIC_DIFFICULTIES.find(d => d.value === tableTopicCurrentPrompt.difficulty);
+  };
+
+  const getCategoryInfo = () => {
+    if (!tableTopicCurrentPrompt) return null;
+    return TABLE_TOPIC_CATEGORIES.find(c => c.value === tableTopicCurrentPrompt.category);
+  };
+
+  if (showCategoryPicker) {
+    return (
+      <div style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        pointerEvents: "none",
+      }}>
+        <div style={{
+          position: "absolute",
+          top: 20,
+          left: 20,
+          pointerEvents: "auto",
+        }}>
+          <button
+            onClick={goToMenu}
+            style={{
+              background: "rgba(0,0,0,0.7)",
+              color: "white",
+              border: "1px solid rgba(255,255,255,0.2)",
+              padding: "8px 16px",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontSize: 14,
+            }}
+          >
+            ← Exit
+          </button>
+        </div>
+
+        <div style={{
+          background: "rgba(0,0,0,0.9)",
+          borderRadius: 20,
+          padding: "28px",
+          maxWidth: 520,
+          width: "90%",
+          color: "white",
+          pointerEvents: "auto",
+          border: "1px solid rgba(255,255,255,0.1)",
+          maxHeight: "85vh",
+          overflowY: "auto",
+        }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Table Topics</div>
+            <div style={{ fontSize: 13, color: "#a0aec0" }}>Choose a category and difficulty</div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, color: "#a0aec0", marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>
+              Category
+            </div>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8,
+            }}>
+              {TABLE_TOPIC_CATEGORIES.map(cat => (
+                <button
+                  key={cat.value}
+                  onClick={() => setTableTopicCategory(cat.value)}
+                  style={{
+                    background: tableTopicCategory === cat.value
+                      ? "rgba(99, 102, 241, 0.3)"
+                      : "rgba(255,255,255,0.05)",
+                    border: tableTopicCategory === cat.value
+                      ? "2px solid #6366f1"
+                      : "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                    color: "white",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontSize: 13,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>{cat.icon}</span>
+                  <span style={{ fontWeight: tableTopicCategory === cat.value ? 600 : 400 }}>{cat.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 12, color: "#a0aec0", marginBottom: 8, fontWeight: 600, textTransform: "uppercase" }}>
+              Difficulty
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setTableTopicDifficulty(null)}
+                style={{
+                  flex: 1,
+                  background: tableTopicDifficulty === null
+                    ? "rgba(99, 102, 241, 0.3)"
+                    : "rgba(255,255,255,0.05)",
+                  border: tableTopicDifficulty === null
+                    ? "2px solid #6366f1"
+                    : "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  color: "white",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: tableTopicDifficulty === null ? 600 : 400,
+                }}
+              >
+                Any
+              </button>
+              {TABLE_TOPIC_DIFFICULTIES.map(diff => (
+                <button
+                  key={diff.value}
+                  onClick={() => setTableTopicDifficulty(diff.value)}
+                  style={{
+                    flex: 1,
+                    background: tableTopicDifficulty === diff.value
+                      ? `${diff.color}33`
+                      : "rgba(255,255,255,0.05)",
+                    border: tableTopicDifficulty === diff.value
+                      ? `2px solid ${diff.color}`
+                      : "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    textAlign: "center",
+                    fontWeight: tableTopicDifficulty === diff.value ? 600 : 400,
+                  }}
+                >
+                  <div>{diff.label}</div>
+                  <div style={{ fontSize: 10, color: "#a0aec0", marginTop: 2 }}>{diff.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={handleCategoryConfirm}
+            style={{
+              width: "100%",
+              background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+              color: "white",
+              border: "none",
+              padding: "14px 24px",
+              borderRadius: 12,
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: "pointer",
+              minHeight: 44,
+            }}
+          >
+            Get My Topic
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -127,6 +318,35 @@ export default function TableTopicsMode() {
           pointerEvents: "auto",
           border: "1px solid rgba(255,255,255,0.1)",
         }}>
+          {tableTopicCurrentPrompt && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+              {getCategoryInfo() && (
+                <span style={{
+                  fontSize: 11,
+                  background: "rgba(99, 102, 241, 0.2)",
+                  color: "#a5b4fc",
+                  padding: "3px 10px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(99, 102, 241, 0.3)",
+                }}>
+                  {getCategoryInfo()!.icon} {getCategoryInfo()!.label}
+                </span>
+              )}
+              {getDifficultyInfo() && (
+                <span style={{
+                  fontSize: 11,
+                  background: `${getDifficultyInfo()!.color}22`,
+                  color: getDifficultyInfo()!.color,
+                  padding: "3px 10px",
+                  borderRadius: 12,
+                  border: `1px solid ${getDifficultyInfo()!.color}44`,
+                }}>
+                  {getDifficultyInfo()!.label}
+                </span>
+              )}
+            </div>
+          )}
+
           <div style={{ fontSize: 12, color: "#f5a623", marginBottom: 12, fontWeight: 600 }}>
             YOUR TOPIC
           </div>
@@ -173,6 +393,21 @@ export default function TableTopicsMode() {
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             {!started ? (
               <>
+                <button
+                  onClick={() => setShowCategoryPicker(true)}
+                  style={{
+                    background: "rgba(255,255,255,0.1)",
+                    color: "white",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    padding: "12px 24px",
+                    borderRadius: 10,
+                    fontSize: 14,
+                    cursor: "pointer",
+                    minHeight: 44,
+                  }}
+                >
+                  Categories
+                </button>
                 <button
                   onClick={handleNewPrompt}
                   style={{
