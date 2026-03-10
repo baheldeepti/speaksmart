@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 export interface RubricMetric {
   label: string;
   score: number;
   maxScore: number;
+  feedback?: string;
 }
 
 export interface RoleRubricData {
@@ -12,35 +13,19 @@ export interface RoleRubricData {
   metrics: RubricMetric[];
   feedback?: string;
   transcript?: string;
+  improvementAreas?: string[];
+  strengths?: string[];
 }
 
 type RoleType = "speaker" | "table_topics" | "timer" | "evaluator" | "grammarian" | "ah_counter";
 
-const roleConfig: Record<RoleType, { title: string; metricLabels: string[] }> = {
-  speaker: {
-    title: "Speaker Evaluation",
-    metricLabels: ["Filler Words (Fluency)", "Speech Pace (Confidence)", "Story Structure (Clarity)", "Audience Engagement (Delivery)"],
-  },
-  table_topics: {
-    title: "Table Topics Evaluation",
-    metricLabels: ["Filler Words (Fluency)", "Speech Pace (Confidence)", "Story Structure (Clarity)", "Audience Engagement (Delivery)"],
-  },
-  timer: {
-    title: "Timer Evaluation",
-    metricLabels: ["Timing Accuracy", "Response Speed", "Signal Awareness", "Consistency"],
-  },
-  evaluator: {
-    title: "Evaluator Assessment",
-    metricLabels: ["Thoroughness", "Balance", "Detail Level", "Engagement"],
-  },
-  grammarian: {
-    title: "Grammarian Assessment",
-    metricLabels: ["Observation Count", "Variety", "Attentiveness", "Detail Quality"],
-  },
-  ah_counter: {
-    title: "Ah Counter Assessment",
-    metricLabels: ["Detection Count", "Category Coverage", "Tracking Consistency", "Attentiveness"],
-  },
+const roleConfig: Record<RoleType, { title: string }> = {
+  speaker: { title: "Speaker Evaluation" },
+  table_topics: { title: "Table Topics Evaluation" },
+  timer: { title: "Timer Evaluation" },
+  evaluator: { title: "Evaluator Assessment" },
+  grammarian: { title: "Grammarian Assessment" },
+  ah_counter: { title: "Ah Counter Assessment" },
 };
 
 function getScoreColor(score: number, max: number): string {
@@ -62,8 +47,17 @@ function getOverallGrade(score: number): { label: string; color: string } {
 export default function RoleRubric({ data }: { data: RoleRubricData }) {
   const config = roleConfig[data.role as RoleType];
   const grade = useMemo(() => getOverallGrade(data.overallScore), [data.overallScore]);
+  const [showFullTranscript, setShowFullTranscript] = useState(false);
 
   if (!config) return null;
+
+  const strengths = data.strengths?.length
+    ? data.strengths
+    : data.metrics.filter(m => m.score / m.maxScore >= 0.7).map(m => m.feedback || `${m.label}: ${m.score}/${m.maxScore}`);
+
+  const improvementAreas = data.improvementAreas?.length
+    ? data.improvementAreas
+    : data.metrics.filter(m => m.score / m.maxScore < 0.7).map(m => m.feedback || `${m.label}: needs improvement`);
 
   return (
     <div style={{
@@ -116,7 +110,7 @@ export default function RoleRubric({ data }: { data: RoleRubricData }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 16 }}>
         {data.metrics.map((metric, i) => {
           const barColor = getScoreColor(metric.score, metric.maxScore);
           const pct = Math.min((metric.score / metric.maxScore) * 100, 100);
@@ -147,10 +141,63 @@ export default function RoleRubric({ data }: { data: RoleRubricData }) {
                   transition: "width 0.6s ease",
                 }} />
               </div>
+              {metric.feedback && (
+                <div style={{
+                  fontSize: 12,
+                  color: "#8a94a6",
+                  marginTop: 4,
+                  lineHeight: 1.4,
+                  paddingLeft: 4,
+                }}>
+                  {metric.feedback}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
+
+      {strengths.length > 0 && (
+        <div style={{
+          background: "rgba(72, 187, 120, 0.08)",
+          borderRadius: 10,
+          padding: "14px",
+          marginBottom: 12,
+          border: "1px solid rgba(72, 187, 120, 0.2)",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#48bb78", marginBottom: 8 }}>
+            Strengths
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {strengths.map((s, i) => (
+              <li key={i} style={{ fontSize: 12, color: "#a0aec0", lineHeight: 1.6, marginBottom: 2 }}>
+                {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {improvementAreas.length > 0 && (
+        <div style={{
+          background: "rgba(237, 137, 54, 0.08)",
+          borderRadius: 10,
+          padding: "14px",
+          marginBottom: 12,
+          border: "1px solid rgba(237, 137, 54, 0.2)",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#ed8936", marginBottom: 8 }}>
+            Areas for Improvement
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {improvementAreas.map((a, i) => (
+              <li key={i} style={{ fontSize: 12, color: "#a0aec0", lineHeight: 1.6, marginBottom: 2 }}>
+                {a}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {data.feedback && (
         <div style={{
@@ -161,7 +208,7 @@ export default function RoleRubric({ data }: { data: RoleRubricData }) {
           border: "1px solid rgba(255,255,255,0.06)",
         }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", marginBottom: 6 }}>
-            AI Feedback
+            Detailed Feedback
           </div>
           <div style={{ fontSize: 13, color: "#a0aec0", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
             {data.feedback}
@@ -176,20 +223,42 @@ export default function RoleRubric({ data }: { data: RoleRubricData }) {
           padding: "14px",
           border: "1px solid rgba(255,255,255,0.06)",
         }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", marginBottom: 6 }}>
-            Transcript Preview
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 6,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>
+              Your Transcript
+            </div>
+            {data.transcript.length > 300 && (
+              <button
+                onClick={() => setShowFullTranscript(!showFullTranscript)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#63b3ed",
+                  fontSize: 12,
+                  cursor: "pointer",
+                  padding: "2px 6px",
+                }}
+              >
+                {showFullTranscript ? "Show less" : "Show full"}
+              </button>
+            )}
           </div>
           <div style={{
             fontSize: 12,
             color: "#718096",
-            lineHeight: 1.5,
-            maxHeight: 120,
-            overflow: "auto",
+            lineHeight: 1.6,
+            maxHeight: showFullTranscript ? "none" : 150,
+            overflow: showFullTranscript ? "visible" : "auto",
             whiteSpace: "pre-wrap",
           }}>
-            {data.transcript.length > 500
-              ? data.transcript.slice(0, 500) + "..."
-              : data.transcript}
+            {showFullTranscript || data.transcript.length <= 300
+              ? data.transcript
+              : data.transcript.slice(0, 300) + "..."}
           </div>
         </div>
       )}

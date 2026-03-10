@@ -21,6 +21,8 @@ export interface SpeechEvaluationResult {
       label: string;
       feedback: string;
     }[];
+    strengths: string[];
+    improvementAreas: string[];
   };
 }
 
@@ -74,7 +76,7 @@ Please evaluate specifically against these project objectives.`;
     promptContext = `\nThe impromptu topic given was: "${prompt}"`;
   }
 
-  const analysisPrompt = `You are an expert Toastmasters speech evaluator. Analyze this speech transcript and provide detailed evaluation scores.
+  const analysisPrompt = `You are an expert Toastmasters speech evaluator. Analyze this speech transcript and provide a detailed, comprehensive evaluation.
 
 Speech transcript: "${transcript}"
 
@@ -90,9 +92,13 @@ Please evaluate on these criteria (score each 1-10):
 3. Vocal Confidence - Based on word choice, pace, and flow, how confident does the speaker sound?
 4. Audience Engagement - How engaging and interesting was the content?
 
+For each criterion, provide a specific 1-2 sentence feedback explaining the score, referencing specific moments from the speech when possible.
+
 Also provide:
 - An overall score (1-100)
-- A 2-3 sentence feedback paragraph with specific, actionable advice
+- A detailed 3-5 sentence feedback paragraph with specific, actionable advice
+- A list of 2-3 specific strengths demonstrated in this speech
+- A list of 2-3 specific areas for improvement with actionable suggestions
 
 Respond in this exact JSON format:
 {
@@ -101,18 +107,20 @@ Respond in this exact JSON format:
   "confidenceScore": <number 1-10>,
   "engagementScore": <number 1-10>,
   "overallScore": <number 1-100>,
-  "clarityFeedback": "<one sentence>",
-  "structureFeedback": "<one sentence>",
-  "confidenceFeedback": "<one sentence>",
-  "engagementFeedback": "<one sentence>",
-  "overallFeedback": "<2-3 sentence paragraph with specific advice>"
+  "clarityFeedback": "<1-2 specific sentences>",
+  "structureFeedback": "<1-2 specific sentences>",
+  "confidenceFeedback": "<1-2 specific sentences>",
+  "engagementFeedback": "<1-2 specific sentences>",
+  "overallFeedback": "<3-5 sentence detailed paragraph with specific advice>",
+  "strengths": ["<specific strength 1>", "<specific strength 2>"],
+  "improvementAreas": ["<specific actionable improvement 1>", "<specific actionable improvement 2>"]
 }`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [{ role: "user", content: analysisPrompt }],
     response_format: { type: "json_object" },
-    max_tokens: 1000,
+    max_tokens: 1500,
   });
 
   let analysis: any;
@@ -196,6 +204,8 @@ Respond in this exact JSON format:
             : `${speechPaceWPM} WPM — good conversational pace.`,
         },
       ],
+      strengths: Array.isArray(analysis.strengths) ? analysis.strengths : [],
+      improvementAreas: Array.isArray(analysis.improvementAreas) ? analysis.improvementAreas : [],
     },
   };
 }
@@ -217,18 +227,25 @@ export function evaluateTimerRole(metrics: {
 
   const overallScore = Math.round((accuracyScore + responseScore + signalScore + consistencyScore) / 4 * 10);
 
+  const feedbackParts: string[] = [];
+  if (accuracyScore >= 8) feedbackParts.push("Your timing accuracy was excellent — you tracked the speaker's time precisely.");
+  else if (accuracyScore >= 5) feedbackParts.push("Your timing was reasonably accurate. Practice keeping closer track of the exact time elapsed.");
+  else feedbackParts.push("Your timing accuracy needs improvement. Try to stay focused on the clock throughout the entire speech.");
+
+  if (signalCount === 3) feedbackParts.push("Great job signaling all three color zones (green, yellow, red) — this helps speakers manage their time effectively.");
+  else if (signalCount >= 1) feedbackParts.push(`You signaled ${signalCount}/3 color zones. Make sure to watch for and signal all three thresholds so the speaker knows exactly where they stand.`);
+  else feedbackParts.push("You didn't trigger any color signals. The green/yellow/red signals are essential for helping speakers pace themselves — prioritize this next time.");
+
+  if (metrics.numberOfStops > 2) feedbackParts.push(`You stopped the timer ${metrics.numberOfStops} times. Try to maintain a steady, uninterrupted timer for more accurate tracking.`);
+
   return {
     overallScore,
-    feedback: overallScore >= 80
-      ? "Excellent timing management! You kept accurate time and used the signal system effectively."
-      : overallScore >= 60
-      ? "Good effort on timing. Focus on signaling all three color zones and responding quickly when the speaker starts."
-      : "Keep practicing! Try to start the timer promptly and watch for all three timing thresholds.",
+    feedback: feedbackParts.join("\n\n"),
     metrics: [
-      { name: "accuracy", score: accuracyScore, maxScore: 10, label: "Timing Accuracy", feedback: `${metrics.accuracyPercent}% accuracy in time tracking.` },
-      { name: "response", score: responseScore, maxScore: 10, label: "Response Speed", feedback: `${metrics.timerStartDelay}s delay before starting timer.` },
-      { name: "signals", score: signalScore, maxScore: 10, label: "Signal Awareness", feedback: `${signalCount}/3 color signals triggered correctly.` },
-      { name: "consistency", score: consistencyScore, maxScore: 10, label: "Consistency", feedback: `${metrics.numberOfStops} timer stop${metrics.numberOfStops !== 1 ? "s" : ""} during the session.` },
+      { name: "accuracy", score: accuracyScore, maxScore: 10, label: "Timing Accuracy", feedback: `${metrics.accuracyPercent}% accuracy in time tracking. ${accuracyScore >= 8 ? "Precise and reliable." : "Aim for consistent, uninterrupted tracking."}` },
+      { name: "response", score: responseScore, maxScore: 10, label: "Response Speed", feedback: `${metrics.timerStartDelay}s delay before starting. ${responseScore >= 8 ? "Quick response — the speaker knew you were ready." : "Try to start the timer within 2-3 seconds of the speaker beginning."}` },
+      { name: "signals", score: signalScore, maxScore: 10, label: "Signal Awareness", feedback: `${signalCount}/3 color signals triggered. ${signalScore >= 8 ? "All zones covered — excellent awareness." : "Practice watching for all three time thresholds."}` },
+      { name: "consistency", score: consistencyScore, maxScore: 10, label: "Consistency", feedback: `${metrics.numberOfStops} timer stop${metrics.numberOfStops !== 1 ? "s" : ""}. ${consistencyScore >= 8 ? "Smooth, uninterrupted timing." : "Minimize stops for more reliable time tracking."}` },
     ],
   };
 }
@@ -253,18 +270,24 @@ export function evaluateEvaluatorRole(metrics: {
 
   const overallScore = Math.round((thoroughnessScore + balanceScore + detailScore + engagementScore) / 4 * 10);
 
+  const feedbackParts: string[] = [];
+  if (thoroughnessScore >= 8) feedbackParts.push(`Excellent thoroughness! You assessed ${completionPercent}% of the evaluation checklist, showing careful attention to all aspects of the speaker's performance.`);
+  else if (thoroughnessScore >= 5) feedbackParts.push(`You covered ${completionPercent}% of the checklist. Try to assess every item — even brief observations on each criterion help the speaker understand their strengths and weaknesses.`);
+  else feedbackParts.push(`Only ${completionPercent}% of the checklist was completed. A thorough evaluation requires reviewing all criteria. Take notes during the speech to ensure you cover everything.`);
+
+  if (balanceScore >= 7) feedbackParts.push("Your feedback was well-balanced between positive and constructive points — this is exactly what speakers need to grow.");
+  else feedbackParts.push(`Your feedback leaned ${metrics.positiveCount > metrics.constructiveCount ? "heavily positive" : "mostly constructive"}. The best evaluations include roughly equal positive reinforcement and constructive suggestions. Try the "sandwich" method: positive → improvement → positive.`);
+
+  if (engagementScore < 7) feedbackParts.push(`You spent ${Math.floor(metrics.timeSpentSeconds / 60)}m ${metrics.timeSpentSeconds % 60}s evaluating. Spending more time observing lets you catch subtleties in delivery, body language references, and word choices.`);
+
   return {
     overallScore,
-    feedback: overallScore >= 80
-      ? "Thorough evaluation! You covered all key areas and provided balanced feedback."
-      : overallScore >= 60
-      ? "Good evaluation approach. Try to assess more checklist items and balance positive with constructive feedback."
-      : "Keep practicing evaluation skills. Aim to review all checklist items and spend more time observing the speaker.",
+    feedback: feedbackParts.join("\n\n"),
     metrics: [
-      { name: "thoroughness", score: thoroughnessScore, maxScore: 10, label: "Thoroughness", feedback: `${completionPercent}% of checklist completed.` },
-      { name: "balance", score: balanceScore, maxScore: 10, label: "Feedback Balance", feedback: `${metrics.positiveCount} positive, ${metrics.constructiveCount} constructive items.` },
-      { name: "detail", score: detailScore, maxScore: 10, label: "Detail Level", feedback: `${metrics.checklistChecked}/${metrics.checklistTotal} items assessed.` },
-      { name: "engagement", score: engagementScore, maxScore: 10, label: "Engagement", feedback: `${Math.floor(metrics.timeSpentSeconds / 60)}m ${metrics.timeSpentSeconds % 60}s spent evaluating.` },
+      { name: "thoroughness", score: thoroughnessScore, maxScore: 10, label: "Thoroughness", feedback: `${completionPercent}% of checklist completed. ${thoroughnessScore >= 8 ? "Comprehensive coverage of all criteria." : "Review every checklist item for a more complete evaluation."}` },
+      { name: "balance", score: balanceScore, maxScore: 10, label: "Feedback Balance", feedback: `${metrics.positiveCount} positive, ${metrics.constructiveCount} constructive items. ${balanceScore >= 7 ? "Well-balanced feedback approach." : "Aim for a roughly even mix of praise and suggestions."}` },
+      { name: "detail", score: detailScore, maxScore: 10, label: "Detail Level", feedback: `${metrics.checklistChecked}/${metrics.checklistTotal} items assessed. ${detailScore >= 8 ? "Detailed, specific observations." : "Add more specific observations about the speaker's delivery."}` },
+      { name: "engagement", score: engagementScore, maxScore: 10, label: "Engagement", feedback: `${Math.floor(metrics.timeSpentSeconds / 60)}m ${metrics.timeSpentSeconds % 60}s spent evaluating. ${engagementScore >= 7 ? "Good engagement with the evaluation process." : "Spend more time observing to catch nuances."}` },
     ],
   };
 }
@@ -292,18 +315,24 @@ export function evaluateGrammarianRole(metrics: {
 
   const overallScore = Math.round((countScore + varietyScore + spreadScore + qualityScore) / 4 * 10);
 
+  const feedbackParts: string[] = [];
+  if (countScore >= 8) feedbackParts.push(`Excellent observation volume! You recorded ${metrics.noteCount} grammar notes, demonstrating strong attentiveness throughout the speech.`);
+  else if (countScore >= 5) feedbackParts.push(`You recorded ${metrics.noteCount} grammar notes. Try to capture more observations — aim for at least 7-10 notes per speech to give the speaker comprehensive grammar feedback.`);
+  else feedbackParts.push(`Only ${metrics.noteCount} grammar note${metrics.noteCount !== 1 ? "s" : ""} recorded. The Grammarian role requires active listening and frequent note-taking. Try writing down any interesting word choices, grammatical errors, or creative expressions.`);
+
+  if (varietyScore >= 7) feedbackParts.push("Good variety in your observations — you captured both positive language use and areas for improvement.");
+  else feedbackParts.push("Try to diversify your notes. Look for both excellent word choices (positive) and grammar issues (improvement). Also note use of the Word of the Day, vivid descriptions, and repetitive phrases.");
+
+  if (spreadScore < 7) feedbackParts.push("Your notes were clustered in one part of the speech. Practice taking notes throughout the entire speech — beginning, middle, and end — to give the speaker a complete picture.");
+
   return {
     overallScore,
-    feedback: overallScore >= 80
-      ? "Excellent grammar observation! You captured diverse language patterns throughout the entire session."
-      : overallScore >= 60
-      ? "Good observation skills. Try to note more variety in grammar usage and track observations throughout the whole speech."
-      : "Keep building your observation skills. Focus on catching different types of language use and noting them consistently.",
+    feedback: feedbackParts.join("\n\n"),
     metrics: [
-      { name: "count", score: countScore, maxScore: 10, label: "Observation Count", feedback: `${metrics.noteCount} grammar notes recorded.` },
-      { name: "variety", score: varietyScore, maxScore: 10, label: "Variety", feedback: `${metrics.uniqueTypes} different observation types.` },
-      { name: "spread", score: spreadScore, maxScore: 10, label: "Attentiveness", feedback: spreadScore >= 8 ? "Notes spread well across the session." : "Try to note observations throughout the entire speech." },
-      { name: "quality", score: qualityScore, maxScore: 10, label: "Detail Quality", feedback: qualityScore >= 8 ? "High quality, detailed observations." : "Add more specific details to your notes." },
+      { name: "count", score: countScore, maxScore: 10, label: "Observation Count", feedback: `${metrics.noteCount} grammar notes recorded. ${countScore >= 8 ? "Strong attention to language details." : "Aim for 7+ notes per speech."}` },
+      { name: "variety", score: varietyScore, maxScore: 10, label: "Variety", feedback: `${metrics.uniqueTypes} different observation types. ${varietyScore >= 7 ? "Good mix of observation categories." : "Include both positive language use and areas for improvement."}` },
+      { name: "spread", score: spreadScore, maxScore: 10, label: "Attentiveness", feedback: spreadScore >= 8 ? "Notes spread well across the entire session — consistent attention." : "Try to note observations throughout the entire speech, not just one section." },
+      { name: "quality", score: qualityScore, maxScore: 10, label: "Detail Quality", feedback: qualityScore >= 8 ? "High quality, detailed observations with good specificity." : "Add more specific details — quote exact phrases and explain why they worked or didn't." },
     ],
   };
 }
@@ -332,18 +361,24 @@ export function evaluateAhCounterRole(metrics: {
 
   const overallScore = Math.round((detectionScore + coverageScore + consistencyScore + attentivenessScore) / 4 * 10);
 
+  const feedbackParts: string[] = [];
+  if (detectionScore >= 8) feedbackParts.push(`Great detection! You caught ${metrics.totalCount} filler words, showing strong listening skills and attention to the speaker's verbal habits.`);
+  else if (detectionScore >= 5) feedbackParts.push(`You detected ${metrics.totalCount} filler words. This is a decent start — experienced Ah Counters typically catch 5+ per speech. Focus on the most common fillers: "um," "uh," "like," and "you know."`);
+  else feedbackParts.push(`You tracked ${metrics.totalCount} filler word${metrics.totalCount !== 1 ? "s" : ""}. Most speakers use several filler words during a speech. Practice active listening — sit where you can hear clearly and focus solely on speech patterns.`);
+
+  if (coverageScore >= 7) feedbackParts.push(`You tracked ${categories} different types of fillers — great range! Monitoring multiple filler categories gives the speaker the most useful feedback.`);
+  else feedbackParts.push(`You only tracked ${categories} type${categories !== 1 ? "s" : ""} of fillers. Speakers often use multiple types — listen for "um," "uh," "ah," "like," "you know," "so," "basically," and pause fillers. Tracking variety helps speakers understand their specific habits.`);
+
+  if (consistencyScore < 7) feedbackParts.push("Your tracking was concentrated in one part of the speech. Try to maintain consistent attention from start to finish — filler words often increase when speakers are nervous (beginning) or losing structure (end).");
+
   return {
     overallScore,
-    feedback: overallScore >= 80
-      ? "Excellent filler word tracking! You caught multiple types consistently throughout the speech."
-      : overallScore >= 60
-      ? "Good tracking effort. Try to monitor for more types of filler words and track throughout the entire speech."
-      : "Keep practicing! Focus on listening for different filler words (um, uh, like, you know) and track them consistently.",
+    feedback: feedbackParts.join("\n\n"),
     metrics: [
-      { name: "detection", score: detectionScore, maxScore: 10, label: "Detection Count", feedback: `${metrics.totalCount} filler words caught.` },
-      { name: "coverage", score: coverageScore, maxScore: 10, label: "Category Coverage", feedback: `${categories} different filler types tracked.` },
-      { name: "consistency", score: consistencyScore, maxScore: 10, label: "Tracking Consistency", feedback: consistencyScore >= 8 ? "Consistent tracking throughout." : "Try to track filler words throughout the entire speech." },
-      { name: "attentiveness", score: attentivenessScore, maxScore: 10, label: "Attentiveness", feedback: attentivenessScore >= 8 ? "Very attentive to speaker's language." : "Stay focused on the speaker's word choices." },
+      { name: "detection", score: detectionScore, maxScore: 10, label: "Detection Count", feedback: `${metrics.totalCount} filler words caught. ${detectionScore >= 8 ? "Sharp listening skills." : "Aim to catch at least 5 per speech."}` },
+      { name: "coverage", score: coverageScore, maxScore: 10, label: "Category Coverage", feedback: `${categories} different filler types tracked. ${coverageScore >= 7 ? "Good range of filler categories." : "Listen for um, uh, like, you know, so, basically, and pauses."}` },
+      { name: "consistency", score: consistencyScore, maxScore: 10, label: "Tracking Consistency", feedback: consistencyScore >= 8 ? "Consistent tracking from start to finish — excellent focus." : "Practice maintaining attention throughout the entire speech." },
+      { name: "attentiveness", score: attentivenessScore, maxScore: 10, label: "Attentiveness", feedback: attentivenessScore >= 8 ? "Very attentive to the speaker's verbal patterns and habits." : "Stay focused on speech patterns — try to minimize distractions during the speech." },
     ],
   };
 }

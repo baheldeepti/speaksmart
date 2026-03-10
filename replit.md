@@ -4,6 +4,7 @@
 A browser-based 3D game simulating a Toastmasters meeting where users can practice different meeting roles interactively in a virtual environment. Built with React Three Fiber for 3D rendering. Supports both solo practice and real-time multiplayer with 6+ players. Includes AI-powered speech evaluation, role-specific rubrics, progressive learning tracking, and engagement analytics.
 
 ## Recent Changes
+- 2026-03-10: Enhanced all evaluations with detailed per-metric feedback, strengths/improvement areas sections, full expandable transcript for speakers, comprehensive multi-paragraph feedback for all 6 roles, IDOR security fixes on evaluation endpoints
 - 2026-03-09: Added AI speech evaluation (OpenAI transcription + GPT analysis), role rubrics for all 6 roles, progress tracking, engagement dashboard, expanded Table Topics (100+ categorized prompts), optional Toastmasters Pathways project selection, multiplayer audience ratings
 - 2026-02-24: Added user authentication (register/login), game session persistence, recording uploads, scoreboard, and game history
 - 2026-02-24: Added audio recording to Speaker and Table Topics modes (record, playback, download)

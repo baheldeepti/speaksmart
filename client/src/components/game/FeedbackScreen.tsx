@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useToastmasters } from "@/lib/stores/useToastmasters";
-import RoleRubric, { type RoleRubricData } from "./RoleRubric";
+import RoleRubric, { type RoleRubricData, type RubricMetric } from "./RoleRubric";
 
 declare global {
   interface Window {
@@ -97,16 +97,20 @@ export default function FeedbackScreen() {
               const evalData = await evalRes.json();
               const rubric = evalData.rubric as any;
               if (rubric?.metrics) {
+                const metrics: RubricMetric[] = rubric.metrics.map((m: any) => ({
+                  label: m.label,
+                  score: m.score,
+                  maxScore: m.maxScore,
+                  feedback: m.feedback,
+                }));
                 setRubricData({
                   role: selectedRole,
                   overallScore: (evalData.overallScore || 50) / 10,
-                  metrics: rubric.metrics.map((m: any) => ({
-                    label: m.label,
-                    score: m.score,
-                    maxScore: m.maxScore,
-                  })),
+                  metrics,
                   feedback: evalData.aiFeedback || evalData.ai_feedback,
                   transcript: evalData.transcript,
+                  strengths: rubric.strengths,
+                  improvementAreas: rubric.improvementAreas,
                 });
               }
             } else {
@@ -131,17 +135,18 @@ export default function FeedbackScreen() {
             });
             if (evalRes.ok) {
               const evalData = await evalRes.json();
-              const metrics = Array.isArray(evalData.metrics)
+              const rawMetrics = Array.isArray(evalData.metrics)
                 ? evalData.metrics
                 : [];
-              if (metrics.length > 0) {
+              if (rawMetrics.length > 0) {
                 setRubricData({
                   role: selectedRole,
                   overallScore: (evalData.overallScore || 50) / 10,
-                  metrics: metrics.map((m: any) => ({
+                  metrics: rawMetrics.map((m: any) => ({
                     label: m.label,
                     score: m.score,
                     maxScore: m.maxScore,
+                    feedback: m.feedback,
                   })),
                   feedback: evalData.feedback,
                 });
