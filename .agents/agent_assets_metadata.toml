@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "LNBcRMSQuV5jATnqTfof-"
+uri = "file://class-presentation.md"
+type = "text"
+title = "1-Hour Class Presentation: Building with AI"

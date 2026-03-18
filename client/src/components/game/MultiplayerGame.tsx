@@ -780,11 +780,287 @@ function MultiplayerObserverView() {
   return null;
 }
 
+function MultiplayerEvaluationForm() {
+  const { roomState, playerId, sendPeerEvaluation, receivedEvaluations } = useMultiplayer();
+  const [evaluations, setEvaluations] = useState<Record<string, {
+    commendations: string;
+    suggestions: string;
+    overallRating: number;
+  }>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+
+  const otherPlayers = roomState ? roomState.players.filter(p => p.id !== playerId) : [];
+
+  useEffect(() => {
+    if (!activeTab && otherPlayers.length > 0) {
+      setActiveTab(otherPlayers[0].id);
+    }
+  }, [otherPlayers.length]);
+
+  if (!roomState) return null;
+
+  const myPlayer = roomState.players.find(p => p.id === playerId);
+  const roleNames: Record<string, string> = {
+    speaker: "Speaker", table_topics: "Table Topics", timer: "Timer",
+    evaluator: "Evaluator", grammarian: "Grammarian", ah_counter: "Ah Counter",
+  };
+
+  const rolePrompts: Record<string, { commendationHint: string; suggestionHint: string }> = {
+    speaker: {
+      commendationHint: "What did the speaker do well? (e.g., strong opening, clear message, good eye contact, vocal variety...)",
+      suggestionHint: "What could they try next time? (e.g., use more pauses, stronger conclusion, add a personal story...)",
+    },
+    table_topics: {
+      commendationHint: "What stood out in their impromptu response? (e.g., quick thinking, stayed on topic, creative angle...)",
+      suggestionHint: "How could they improve? (e.g., clearer structure, stronger close, use the full time...)",
+    },
+    timer: {
+      commendationHint: "How well did they manage time signals? (e.g., timely signals, clear indicators, consistent tracking...)",
+      suggestionHint: "Any timing improvements? (e.g., faster start, clearer signals, smoother transitions...)",
+    },
+    evaluator: {
+      commendationHint: "What was strong about their evaluation? (e.g., specific examples, balanced feedback, encouraging tone...)",
+      suggestionHint: "How could their evaluations improve? (e.g., more specifics, better sandwich method, actionable suggestions...)",
+    },
+    grammarian: {
+      commendationHint: "How well did they track language? (e.g., good word of the day usage, caught key phrases, thorough notes...)",
+      suggestionHint: "Any areas to grow? (e.g., more variety in observations, quote exact phrases, note positive language too...)",
+    },
+    ah_counter: {
+      commendationHint: "How attentive were they? (e.g., caught many fillers, tracked different types, consistent attention...)",
+      suggestionHint: "How could they improve? (e.g., track more filler types, note context of fillers, stay attentive throughout...)",
+    },
+  };
+
+  const updateEval = (pId: string, field: string, value: string | number) => {
+    setEvaluations(prev => ({
+      ...prev,
+      [pId]: { ...prev[pId] || { commendations: "", suggestions: "", overallRating: 0 }, [field]: value },
+    }));
+  };
+
+  const filledCount = Object.values(evaluations).filter(e => e.commendations.trim() && e.overallRating > 0).length;
+
+  if (submitted) {
+    return (
+      <div style={{
+        background: "rgba(72,187,120,0.1)",
+        borderRadius: 16,
+        padding: "16px 20px",
+        border: "1px solid rgba(72,187,120,0.3)",
+        textAlign: "center",
+        marginBottom: 20,
+      }}>
+        <div style={{ fontSize: 20, marginBottom: 6 }}>&#10003;</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#48bb78" }}>Evaluations Submitted!</div>
+        <div style={{ fontSize: 11, color: "#a0aec0", marginTop: 4 }}>
+          You evaluated {filledCount} member{filledCount !== 1 ? "s" : ""}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.05)",
+      borderRadius: 16,
+      padding: "20px",
+      maxWidth: 520,
+      width: "90%",
+      marginBottom: 20,
+      border: "1px solid rgba(66,153,225,0.3)",
+    }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: "#4299e1", marginBottom: 4 }}>
+        Toastmasters Evaluation
+      </div>
+      <div style={{ fontSize: 11, color: "#a0aec0", marginBottom: 14 }}>
+        Give each member feedback using the Toastmasters method: what they did well, and one thing to try next time
+      </div>
+
+      <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
+        {otherPlayers.map(p => {
+          const hasEval = evaluations[p.id]?.commendations?.trim();
+          return (
+            <button
+              key={p.id}
+              onClick={() => setActiveTab(p.id)}
+              style={{
+                background: activeTab === p.id ? "rgba(66,153,225,0.3)" : hasEval ? "rgba(72,187,120,0.15)" : "rgba(255,255,255,0.05)",
+                border: activeTab === p.id ? "1px solid #4299e1" : hasEval ? "1px solid rgba(72,187,120,0.3)" : "1px solid rgba(255,255,255,0.1)",
+                color: "white",
+                padding: "6px 12px",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: activeTab === p.id ? 700 : 400,
+              }}
+            >
+              {p.name}
+              <span style={{ fontSize: 9, color: "#a0aec0", marginLeft: 4 }}>
+                {p.role ? roleNames[p.role] : ""}
+              </span>
+              {hasEval && <span style={{ marginLeft: 4, color: "#48bb78" }}>&#10003;</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab && (() => {
+        const p = otherPlayers.find(pl => pl.id === activeTab);
+        if (!p) return null;
+        const ev = evaluations[p.id] || { commendations: "", suggestions: "", overallRating: 0 };
+        const prompts = rolePrompts[p.role || "speaker"] || rolePrompts.speaker;
+
+        return (
+          <div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
+              padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 8,
+            }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</div>
+                <div style={{ fontSize: 11, color: "#f5a623" }}>{p.role ? roleNames[p.role] : "Unknown"}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#48bb78", marginBottom: 4 }}>
+                What did they do well? (Commendations)
+              </div>
+              <textarea
+                value={ev.commendations}
+                onChange={e => updateEval(p.id, "commendations", e.target.value)}
+                placeholder={prompts.commendationHint}
+                rows={3}
+                style={{
+                  width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)",
+                  color: "white", padding: "8px 10px", borderRadius: 8, fontSize: 12, outline: "none",
+                  resize: "vertical", fontFamily: "inherit",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#f5a623", marginBottom: 4 }}>
+                One thing to try next time (Suggestion)
+              </div>
+              <textarea
+                value={ev.suggestions}
+                onChange={e => updateEval(p.id, "suggestions", e.target.value)}
+                placeholder={prompts.suggestionHint}
+                rows={2}
+                style={{
+                  width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)",
+                  color: "white", padding: "8px 10px", borderRadius: 8, fontSize: 12, outline: "none",
+                  resize: "vertical", fontFamily: "inherit",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#a0aec0", marginBottom: 6 }}>
+                Overall Rating
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    onClick={() => updateEval(p.id, "overallRating", star)}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer", fontSize: 24, padding: "2px",
+                      filter: star <= ev.overallRating ? "none" : "grayscale(1) opacity(0.3)",
+                      transform: star <= ev.overallRating ? "scale(1.1)" : "scale(1)",
+                      transition: "transform 0.1s",
+                    }}
+                  >
+                    &#11088;
+                  </button>
+                ))}
+                {ev.overallRating > 0 && (
+                  <span style={{ fontSize: 11, color: "#a0aec0", marginLeft: 4 }}>
+                    {["", "Needs Work", "Developing", "Competent", "Advanced", "Distinguished"][ev.overallRating]}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
+        <span style={{ fontSize: 11, color: "#a0aec0" }}>
+          {filledCount}/{otherPlayers.length} evaluated
+        </span>
+        <button
+          onClick={() => {
+            Object.entries(evaluations).forEach(([pId, ev]) => {
+              if (ev.commendations.trim() && ev.overallRating > 0) {
+                sendPeerEvaluation(pId, ev.commendations, ev.suggestions, ev.overallRating);
+              }
+            });
+            setSubmitted(true);
+          }}
+          disabled={filledCount === 0}
+          style={{
+            background: filledCount > 0 ? "linear-gradient(135deg, #4299e1, #3182ce)" : "rgba(255,255,255,0.05)",
+            color: filledCount > 0 ? "white" : "#555",
+            border: "none", padding: "10px 24px", borderRadius: 10,
+            fontSize: 13, fontWeight: 700, cursor: filledCount > 0 ? "pointer" : "default",
+          }}
+        >
+          Submit Evaluations
+        </button>
+      </div>
+
+      {receivedEvaluations.length > 0 && (
+        <div style={{ marginTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#48bb78", marginBottom: 10 }}>
+            Feedback You Received ({receivedEvaluations.length})
+          </div>
+          {receivedEvaluations.map((ev, i) => (
+            <div key={i} style={{
+              background: "rgba(72,187,120,0.08)", borderRadius: 10, padding: "12px",
+              marginBottom: 8, border: "1px solid rgba(72,187,120,0.15)",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>
+                  {ev.fromName} <span style={{ color: "#a0aec0", fontWeight: 400 }}>({ev.fromRole})</span>
+                </span>
+                <span style={{ fontSize: 12 }}>
+                  {Array.from({ length: 5 }, (_, s) => (
+                    <span key={s} style={{ filter: s < ev.overallRating ? "none" : "grayscale(1) opacity(0.3)" }}>&#11088;</span>
+                  ))}
+                </span>
+              </div>
+              {ev.commendations && (
+                <div style={{ fontSize: 12, color: "#c6f6d5", marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600, color: "#48bb78" }}>Well done: </span>{ev.commendations}
+                </div>
+              )}
+              {ev.suggestions && (
+                <div style={{ fontSize: 12, color: "#fefcbf" }}>
+                  <span style={{ fontWeight: 600, color: "#f5a623" }}>Try next: </span>{ev.suggestions}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MultiplayerFeedback() {
   const { roomState, playerId, returnToLobby, leaveRoom } = useMultiplayer();
   if (!roomState || roomState.phase !== "feedback") return null;
 
   const isHost = playerId === roomState.hostId;
+
+  const roleNames: Record<string, string> = {
+    speaker: "Speaker", table_topics: "Table Topics", timer: "Timer",
+    evaluator: "Evaluator", grammarian: "Grammarian", ah_counter: "Ah Counter",
+  };
 
   return (
     <div style={{
@@ -793,23 +1069,26 @@ function MultiplayerFeedback() {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      justifyContent: "center",
       background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
       color: "white",
       fontFamily: "'Inter', sans-serif",
       zIndex: 100,
+      overflow: "auto",
+      padding: "30px 20px",
     }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>&#127881;</div>
       <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Meeting Complete!</h2>
       <p style={{ fontSize: 14, color: "#a0aec0", marginBottom: 24 }}>
         Great practice session with {roomState.players.length} members
       </p>
 
+      <MultiplayerEvaluationForm />
+
       <div style={{
         background: "rgba(255,255,255,0.05)",
         borderRadius: 16,
         padding: "20px",
-        maxWidth: 400,
+        maxWidth: 520,
         width: "90%",
         marginBottom: 20,
         border: "1px solid rgba(255,255,255,0.1)",
@@ -821,7 +1100,7 @@ function MultiplayerFeedback() {
             borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: 14,
           }}>
             <span>{p.name}</span>
-            <span style={{ color: "#f5a623" }}>{p.role}</span>
+            <span style={{ color: "#f5a623" }}>{p.role ? roleNames[p.role] : p.role}</span>
           </div>
         ))}
       </div>
@@ -831,7 +1110,7 @@ function MultiplayerFeedback() {
           background: "rgba(255,255,255,0.05)",
           borderRadius: 16,
           padding: "20px",
-          maxWidth: 400,
+          maxWidth: 520,
           width: "90%",
           marginBottom: 20,
           border: "1px solid rgba(245,166,35,0.2)",

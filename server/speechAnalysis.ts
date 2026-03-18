@@ -76,7 +76,7 @@ Please evaluate specifically against these project objectives.`;
     promptContext = `\nThe impromptu topic given was: "${prompt}"`;
   }
 
-  const analysisPrompt = `You are an expert Toastmasters speech evaluator. Analyze this speech transcript and provide a detailed, comprehensive evaluation.
+  const analysisPrompt = `You are an experienced Toastmasters speech evaluator giving an oral evaluation at a club meeting. You follow the Toastmasters evaluation method: lead with genuine encouragement, provide specific commendations, then offer 1-2 constructive suggestions framed as growth opportunities — never as criticisms. Your tone is warm, supportive, and mentor-like, as if speaking directly to the speaker.
 
 Speech transcript: "${transcript}"
 
@@ -86,19 +86,21 @@ Word count: ${wordCount}
 Words per minute: ${speechPaceWPM}
 Filler words detected: ${fillerWordCount}${promptContext}${pathwaysContext}
 
-Please evaluate on these criteria (score each 1-10):
-1. Clarity of Ideas - How clear and understandable were the main points?
-2. Story Structure - Did the speech have a clear beginning, middle, and end?
-3. Vocal Confidence - Based on word choice, pace, and flow, how confident does the speaker sound?
-4. Audience Engagement - How engaging and interesting was the content?
+Evaluate using the Toastmasters Competent Communicator criteria (score each 1-10):
+1. Clarity of Ideas — Were the main points clear and easy to follow? Did the speaker stay on topic?
+2. Speech Organization — Opening that grabbed attention, body with logical flow, conclusion with a memorable close or call to action?
+3. Vocal Variety & Delivery — Pace, pitch, volume changes, purposeful pauses? Did the voice convey emotion and emphasis?
+4. Audience Connection — Did the speaker use stories, humor, rhetorical questions, or direct address to engage the audience?
 
-For each criterion, provide a specific 1-2 sentence feedback explaining the score, referencing specific moments from the speech when possible.
+For each criterion, write feedback the way a Toastmasters evaluator would say it out loud — personal, specific, referencing exact phrases or moments from the speech. Use "you" voice (e.g., "When you said '...', it really drew me in").
 
-Also provide:
-- An overall score (1-100)
-- A detailed 3-5 sentence feedback paragraph with specific, actionable advice
-- A list of 2-3 specific strengths demonstrated in this speech
-- A list of 2-3 specific areas for improvement with actionable suggestions
+For the overall feedback, write it as a Toastmasters oral evaluation — 3-5 sentences using the sandwich method:
+1. Start with a genuine compliment about what the speaker did well
+2. Offer 1-2 specific, actionable suggestions framed positively ("Next time, you might try..." or "One thing that could take this to the next level...")
+3. End with encouragement and something to look forward to
+
+For strengths, identify 2-3 specific things the speaker did well, quoting exact phrases or describing specific moments.
+For improvement areas, frame each as a positive growth opportunity with a specific technique to try.
 
 Respond in this exact JSON format:
 {
@@ -107,13 +109,13 @@ Respond in this exact JSON format:
   "confidenceScore": <number 1-10>,
   "engagementScore": <number 1-10>,
   "overallScore": <number 1-100>,
-  "clarityFeedback": "<1-2 specific sentences>",
-  "structureFeedback": "<1-2 specific sentences>",
-  "confidenceFeedback": "<1-2 specific sentences>",
-  "engagementFeedback": "<1-2 specific sentences>",
-  "overallFeedback": "<3-5 sentence detailed paragraph with specific advice>",
-  "strengths": ["<specific strength 1>", "<specific strength 2>"],
-  "improvementAreas": ["<specific actionable improvement 1>", "<specific actionable improvement 2>"]
+  "clarityFeedback": "<specific Toastmasters-style feedback using 'you' voice>",
+  "structureFeedback": "<specific Toastmasters-style feedback using 'you' voice>",
+  "confidenceFeedback": "<specific Toastmasters-style feedback using 'you' voice>",
+  "engagementFeedback": "<specific Toastmasters-style feedback using 'you' voice>",
+  "overallFeedback": "<3-5 sentence Toastmasters oral evaluation using sandwich method>",
+  "strengths": ["<specific strength with quote or moment reference>", "<specific strength>"],
+  "improvementAreas": ["<growth opportunity framed positively with technique to try>", "<growth opportunity>"]
 }`;
 
   const response = await openai.chat.completions.create({
@@ -164,21 +166,21 @@ Respond in this exact JSON format:
           name: "structure",
           score: analysis.structureScore || 5,
           maxScore: 10,
-          label: "Story Structure",
+          label: "Speech Organization",
           feedback: analysis.structureFeedback || "",
         },
         {
           name: "confidence",
           score: analysis.confidenceScore || 5,
           maxScore: 10,
-          label: "Vocal Confidence",
+          label: "Vocal Variety & Delivery",
           feedback: analysis.confidenceFeedback || "",
         },
         {
           name: "engagement",
           score: analysis.engagementScore || 5,
           maxScore: 10,
-          label: "Audience Engagement",
+          label: "Audience Connection",
           feedback: analysis.engagementFeedback || "",
         },
         {
@@ -228,15 +230,15 @@ export function evaluateTimerRole(metrics: {
   const overallScore = Math.round((accuracyScore + responseScore + signalScore + consistencyScore) / 4 * 10);
 
   const feedbackParts: string[] = [];
-  if (accuracyScore >= 8) feedbackParts.push("Your timing accuracy was excellent — you tracked the speaker's time precisely.");
-  else if (accuracyScore >= 5) feedbackParts.push("Your timing was reasonably accurate. Practice keeping closer track of the exact time elapsed.");
-  else feedbackParts.push("Your timing accuracy needs improvement. Try to stay focused on the clock throughout the entire speech.");
+  if (accuracyScore >= 8) feedbackParts.push("Fellow Toastmaster, you did an outstanding job as Timer today. Your timing was spot-on, and the speaker could rely on you completely — that's exactly the kind of dependable support our club needs.");
+  else if (accuracyScore >= 5) feedbackParts.push("Thank you for stepping into the Timer role today. You showed good awareness of the clock, and with a bit more practice, you'll develop that instinctive sense of timing that experienced Timers have. Next time, try keeping your eyes on the clock even during the most engaging parts of the speech.");
+  else feedbackParts.push("I appreciate you taking on the Timer role — it's one that requires constant focus, and every session you practice it makes you sharper. One technique that helps is to mentally mark each 30-second interval as it passes, so you always know roughly where the speaker stands.");
 
-  if (signalCount === 3) feedbackParts.push("Great job signaling all three color zones (green, yellow, red) — this helps speakers manage their time effectively.");
-  else if (signalCount >= 1) feedbackParts.push(`You signaled ${signalCount}/3 color zones. Make sure to watch for and signal all three thresholds so the speaker knows exactly where they stand.`);
-  else feedbackParts.push("You didn't trigger any color signals. The green/yellow/red signals are essential for helping speakers pace themselves — prioritize this next time.");
+  if (signalCount === 3) feedbackParts.push("I particularly want to commend you for signaling all three color zones — green, yellow, and red. That gave the speaker a clear roadmap of their remaining time, which is exactly what great Timers do.");
+  else if (signalCount >= 1) feedbackParts.push(`You signaled ${signalCount} out of 3 color zones. Next time, try to catch all three thresholds — when a speaker sees green, then yellow, then red, it gives them the confidence to pace their conclusion perfectly.`);
+  else feedbackParts.push("One area to focus on next time is the color signals. The green, yellow, and red signals are your primary tools as Timer — they're how you communicate with the speaker without interrupting. Try setting a quiet reminder for yourself at each threshold.");
 
-  if (metrics.numberOfStops > 2) feedbackParts.push(`You stopped the timer ${metrics.numberOfStops} times. Try to maintain a steady, uninterrupted timer for more accurate tracking.`);
+  if (metrics.numberOfStops > 2) feedbackParts.push(`I noticed you stopped the timer ${metrics.numberOfStops} times during the speech. That's completely normal when you're getting comfortable with the role. As you gain experience, you'll find it easier to let the timer run continuously, which gives you the most accurate reading.`);
 
   return {
     overallScore,
@@ -271,14 +273,14 @@ export function evaluateEvaluatorRole(metrics: {
   const overallScore = Math.round((thoroughnessScore + balanceScore + detailScore + engagementScore) / 4 * 10);
 
   const feedbackParts: string[] = [];
-  if (thoroughnessScore >= 8) feedbackParts.push(`Excellent thoroughness! You assessed ${completionPercent}% of the evaluation checklist, showing careful attention to all aspects of the speaker's performance.`);
-  else if (thoroughnessScore >= 5) feedbackParts.push(`You covered ${completionPercent}% of the checklist. Try to assess every item — even brief observations on each criterion help the speaker understand their strengths and weaknesses.`);
-  else feedbackParts.push(`Only ${completionPercent}% of the checklist was completed. A thorough evaluation requires reviewing all criteria. Take notes during the speech to ensure you cover everything.`);
+  if (thoroughnessScore >= 8) feedbackParts.push(`Fellow Toastmaster, you delivered a thorough evaluation today — you assessed ${completionPercent}% of the checklist criteria, which shows you were truly paying attention to the speaker's performance from start to finish. That kind of careful observation is what makes evaluations genuinely helpful.`);
+  else if (thoroughnessScore >= 5) feedbackParts.push(`Thank you for your evaluation today. You covered ${completionPercent}% of the checklist, which is a solid foundation. To take your evaluations to the next level, try jotting a quick note for each criterion as the speech unfolds — even a single word can help you remember specific moments when it's time to give your evaluation.`);
+  else feedbackParts.push(`I appreciate you taking on the Evaluator role today — it's one of the most valuable roles in Toastmasters because your feedback directly helps speakers improve. You covered ${completionPercent}% of the criteria this time. A helpful technique is to keep the checklist visible during the speech and make brief marks as you observe each quality.`);
 
-  if (balanceScore >= 7) feedbackParts.push("Your feedback was well-balanced between positive and constructive points — this is exactly what speakers need to grow.");
-  else feedbackParts.push(`Your feedback leaned ${metrics.positiveCount > metrics.constructiveCount ? "heavily positive" : "mostly constructive"}. The best evaluations include roughly equal positive reinforcement and constructive suggestions. Try the "sandwich" method: positive → improvement → positive.`);
+  if (balanceScore >= 7) feedbackParts.push("I want to commend you on the balance of your feedback — you combined genuine praise with constructive suggestions beautifully. That's the hallmark of an experienced Toastmasters evaluator, and it creates a safe environment for the speaker to grow.");
+  else feedbackParts.push(`Your feedback leaned ${metrics.positiveCount > metrics.constructiveCount ? "toward the positive side, which is encouraging" : "toward the constructive side, which shows you have a sharp eye for improvement"}. The Toastmasters \"sandwich\" method works wonderfully here — start with something specific the speaker did well, offer your suggestion for growth, then close with an encouraging observation. This way, the speaker leaves motivated to improve.`);
 
-  if (engagementScore < 7) feedbackParts.push(`You spent ${Math.floor(metrics.timeSpentSeconds / 60)}m ${metrics.timeSpentSeconds % 60}s evaluating. Spending more time observing lets you catch subtleties in delivery, body language references, and word choices.`);
+  if (engagementScore < 7) feedbackParts.push(`You spent about ${Math.floor(metrics.timeSpentSeconds / 60)} minute${Math.floor(metrics.timeSpentSeconds / 60) !== 1 ? "s" : ""} on your evaluation. The most impactful evaluations come from sustained attention — try to observe the entire speech actively, noting specific phrases, gestures, and moments that stood out. The more specific your examples, the more the speaker will value your feedback.`);
 
   return {
     overallScore,
@@ -316,14 +318,14 @@ export function evaluateGrammarianRole(metrics: {
   const overallScore = Math.round((countScore + varietyScore + spreadScore + qualityScore) / 4 * 10);
 
   const feedbackParts: string[] = [];
-  if (countScore >= 8) feedbackParts.push(`Excellent observation volume! You recorded ${metrics.noteCount} grammar notes, demonstrating strong attentiveness throughout the speech.`);
-  else if (countScore >= 5) feedbackParts.push(`You recorded ${metrics.noteCount} grammar notes. Try to capture more observations — aim for at least 7-10 notes per speech to give the speaker comprehensive grammar feedback.`);
-  else feedbackParts.push(`Only ${metrics.noteCount} grammar note${metrics.noteCount !== 1 ? "s" : ""} recorded. The Grammarian role requires active listening and frequent note-taking. Try writing down any interesting word choices, grammatical errors, or creative expressions.`);
+  if (countScore >= 8) feedbackParts.push(`Fellow Toastmaster, you were an outstanding Grammarian today! You captured ${metrics.noteCount} language observations, which shows you were truly listening with purpose throughout the entire meeting. That level of attention is exactly what helps our members become more articulate speakers.`);
+  else if (countScore >= 5) feedbackParts.push(`Thank you for serving as Grammarian today. You recorded ${metrics.noteCount} observations, which is a good start. Here's a tip from experienced Grammarians: try listening for three things simultaneously — creative word choices worth praising, grammatical slips to gently flag, and how speakers use the Word of the Day. Aiming for 7-10 notes per speech will give you rich material for your report.`);
+  else feedbackParts.push(`I appreciate you taking on the Grammarian role today — it's a fantastic way to develop your own vocabulary and listening skills. You captured ${metrics.noteCount} note${metrics.noteCount !== 1 ? "s" : ""} this time. One technique that really helps is to divide your page into columns: one for great phrases, one for grammar issues, and one for Word of the Day usage. This structure makes it easier to catch observations in real time.`);
 
-  if (varietyScore >= 7) feedbackParts.push("Good variety in your observations — you captured both positive language use and areas for improvement.");
-  else feedbackParts.push("Try to diversify your notes. Look for both excellent word choices (positive) and grammar issues (improvement). Also note use of the Word of the Day, vivid descriptions, and repetitive phrases.");
+  if (varietyScore >= 7) feedbackParts.push("I especially liked the variety in your observations — you noticed both strong language choices and areas where speakers could improve. That balanced perspective is exactly what the Grammarian's report should provide, and it shows real linguistic awareness.");
+  else feedbackParts.push("To make your Grammarian report even more valuable, try diversifying what you listen for. Beyond grammar errors, notice vivid metaphors, powerful word choices, repetitive phrases, and creative use of the Word of the Day. The best Grammarian reports celebrate great language just as much as they flag improvements.");
 
-  if (spreadScore < 7) feedbackParts.push("Your notes were clustered in one part of the speech. Practice taking notes throughout the entire speech — beginning, middle, and end — to give the speaker a complete picture.");
+  if (spreadScore < 7) feedbackParts.push("I noticed your observations were concentrated in one section of the meeting. A helpful practice is to make at least one note in the first minute, the middle section, and the final minute of each speech. This ensures your report reflects the speaker's language throughout their entire presentation.");
 
   return {
     overallScore,
@@ -362,14 +364,14 @@ export function evaluateAhCounterRole(metrics: {
   const overallScore = Math.round((detectionScore + coverageScore + consistencyScore + attentivenessScore) / 4 * 10);
 
   const feedbackParts: string[] = [];
-  if (detectionScore >= 8) feedbackParts.push(`Great detection! You caught ${metrics.totalCount} filler words, showing strong listening skills and attention to the speaker's verbal habits.`);
-  else if (detectionScore >= 5) feedbackParts.push(`You detected ${metrics.totalCount} filler words. This is a decent start — experienced Ah Counters typically catch 5+ per speech. Focus on the most common fillers: "um," "uh," "like," and "you know."`);
-  else feedbackParts.push(`You tracked ${metrics.totalCount} filler word${metrics.totalCount !== 1 ? "s" : ""}. Most speakers use several filler words during a speech. Practice active listening — sit where you can hear clearly and focus solely on speech patterns.`);
+  if (detectionScore >= 8) feedbackParts.push(`Fellow Toastmaster, excellent work as Ah Counter today! You caught ${metrics.totalCount} filler words, which shows you were listening with laser focus. Your sharp ear is a real asset to our club — when speakers know someone is counting their fillers, they naturally become more conscious of their speech patterns, and that's how we all improve.`);
+  else if (detectionScore >= 5) feedbackParts.push(`Thank you for serving as Ah Counter today. You detected ${metrics.totalCount} filler words, which is a solid effort. Here's a tip that experienced Ah Counters use: rather than trying to listen for everything at once, focus on the two most common fillers first — "um" and "uh" — and then gradually expand your listening to include "like," "you know," and "so." You'll find your count naturally increases with practice.`);
+  else feedbackParts.push(`I appreciate you taking on the Ah Counter role today — it's one of the best ways to develop your own listening skills while helping others. You tracked ${metrics.totalCount} filler word${metrics.totalCount !== 1 ? "s" : ""} this time. Most speakers use more fillers than they realize, so don't worry if the count seems low at first. Try sitting close to the speaker and keeping your pen ready — the moment you hear a filler, mark it immediately before your mind moves on.`);
 
-  if (coverageScore >= 7) feedbackParts.push(`You tracked ${categories} different types of fillers — great range! Monitoring multiple filler categories gives the speaker the most useful feedback.`);
-  else feedbackParts.push(`You only tracked ${categories} type${categories !== 1 ? "s" : ""} of fillers. Speakers often use multiple types — listen for "um," "uh," "ah," "like," "you know," "so," "basically," and pause fillers. Tracking variety helps speakers understand their specific habits.`);
+  if (coverageScore >= 7) feedbackParts.push(`I'm impressed that you tracked ${categories} different types of fillers. That kind of detailed breakdown is incredibly valuable — when you can tell a speaker "you said 'um' 3 times and 'like' 5 times," it gives them specific patterns to work on. That's the mark of a skilled Ah Counter.`);
+  else feedbackParts.push(`You tracked ${categories} type${categories !== 1 ? "s" : ""} of fillers, and expanding that range will make your reports even more impactful. Speakers are often surprised to learn their specific filler patterns — some favor "um," others lean on "you know" or "so." By tracking the full spectrum, you give each speaker a personalized roadmap for cleaner speech.`);
 
-  if (consistencyScore < 7) feedbackParts.push("Your tracking was concentrated in one part of the speech. Try to maintain consistent attention from start to finish — filler words often increase when speakers are nervous (beginning) or losing structure (end).");
+  if (consistencyScore < 7) feedbackParts.push("I noticed your tracking was concentrated in one section of the speech. Interestingly, filler words tend to spike at the beginning (nerves) and near the end (losing structure), so maintaining attention throughout reveals the most useful patterns. Try making a small tick mark every 30 seconds even if you don't hear a filler — it keeps you engaged and focused.");
 
   return {
     overallScore,

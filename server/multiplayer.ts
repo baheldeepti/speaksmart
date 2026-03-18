@@ -28,6 +28,18 @@ export interface AggregatedRatings {
   ratings: AudienceRating[];
 }
 
+export interface PeerEvaluation {
+  fromId: string;
+  fromName: string;
+  fromRole: string;
+  toId: string;
+  toName: string;
+  toRole: string;
+  commendations: string;
+  suggestions: string;
+  overallRating: number;
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -44,6 +56,7 @@ export interface Room {
   audienceRatings: AudienceRating[];
   aggregatedRatings: AggregatedRatings | null;
   ratingOpen: boolean;
+  peerEvaluations: PeerEvaluation[];
 }
 
 const TABLE_TOPIC_PROMPTS = [
@@ -198,6 +211,7 @@ export function setupMultiplayer(server: Server) {
               audienceRatings: [],
               aggregatedRatings: null,
               ratingOpen: false,
+              peerEvaluations: [],
             };
 
             rooms.set(roomId, room);
@@ -540,6 +554,55 @@ export function setupMultiplayer(server: Server) {
             break;
           }
 
+          case "peer_evaluation": {
+            if (!currentRoomId) return;
+            const room = rooms.get(currentRoomId);
+            if (!room || room.phase !== "feedback") return;
+
+            const fromPlayer = room.players.get(playerId);
+            if (!fromPlayer) return;
+
+            const toPlayer = room.players.get(msg.toId);
+            if (!toPlayer) return;
+
+            const alreadyEvaluated = room.peerEvaluations.some(
+              e => e.fromId === playerId && e.toId === msg.toId
+            );
+            if (alreadyEvaluated) return;
+
+            const peerEval: PeerEvaluation = {
+              fromId: playerId,
+              fromName: fromPlayer.name,
+              fromRole: fromPlayer.role || "unknown",
+              toId: msg.toId,
+              toName: toPlayer.name,
+              toRole: toPlayer.role || "unknown",
+              commendations: String(msg.commendations || "").slice(0, 1000),
+              suggestions: String(msg.suggestions || "").slice(0, 1000),
+              overallRating: Math.max(1, Math.min(5, Math.round(Number(msg.overallRating) || 3))),
+            };
+
+            room.peerEvaluations.push(peerEval);
+            log(`${fromPlayer.name} evaluated ${toPlayer.name} in room ${currentRoomId}`, "ws");
+
+            const evalsForTarget = room.peerEvaluations.filter(e => e.toId === msg.toId);
+            sendToPlayer(toPlayer, {
+              type: "peer_evaluations_received",
+              evaluations: evalsForTarget,
+            });
+
+            broadcastToRoom(room, {
+              type: "peer_evaluation_count",
+              counts: Object.fromEntries(
+                Array.from(room.players.keys()).map(pid => [
+                  pid,
+                  room.peerEvaluations.filter(e => e.toId === pid).length,
+                ])
+              ),
+            });
+            break;
+          }
+
           case "end_meeting": {
             if (!currentRoomId) return;
             const room = rooms.get(currentRoomId);
@@ -567,6 +630,7 @@ export function setupMultiplayer(server: Server) {
             room.audienceRatings = [];
             room.aggregatedRatings = null;
             room.ratingOpen = false;
+            room.peerEvaluations = [];
             room.players.forEach((p) => {
               p.role = null;
               p.ready = false;

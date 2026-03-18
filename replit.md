@@ -4,6 +4,7 @@
 A browser-based 3D game simulating a Toastmasters meeting where users can practice different meeting roles interactively in a virtual environment. Built with React Three Fiber for 3D rendering. Supports both solo practice and real-time multiplayer with 6+ players. Includes AI-powered speech evaluation, role-specific rubrics, progressive learning tracking, engagement analytics, a structured learning framework, and session replay with multiple camera angles.
 
 ## Recent Changes
+- 2026-03-18: Added multiplayer post-meeting peer evaluation form (Toastmasters-style commendations/suggestions/rating for each member, WebSocket transmission, received feedback display), rewrote all AI evaluation prompts to authentic Toastmasters evaluator style (sandwich method, "you" voice, specific references, encouraging mentor tone, CC manual criteria)
 - 2026-03-18: Added Learning Framework (5-stage public speaking improvement path with goals, role tips, and milestones), Session Replay (review past sessions in 3D from 6 camera angles with audio playback), interactive worksheets for Timer/Ah Counter/Grammarian (speaker tracking, per-speaker tallies, custom fillers, quick tags, notes areas)
 - 2026-03-10: Enhanced all evaluations with detailed per-metric feedback, strengths/improvement areas sections, full expandable transcript for speakers, comprehensive multi-paragraph feedback for all 6 roles, IDOR security fixes on evaluation endpoints
 - 2026-03-09: Added AI speech evaluation (OpenAI transcription + GPT analysis), role rubrics for all 6 roles, progress tracking, engagement dashboard, expanded Table Topics (100+ categorized prompts), optional Toastmasters Pathways project selection, multiplayer audience ratings
@@ -75,7 +76,7 @@ A browser-based 3D game simulating a Toastmasters meeting where users can practi
 4. Role Assignment: Each player picks a unique role -> Mark ready
 5. Meeting: All roles play simultaneously in same 3D room
 6. Audience Rating: After speaker finishes, others rate clarity/storytelling/confidence (1-5 stars)
-7. Feedback: Meeting ends -> Play again or leave
+7. Feedback: Meeting ends -> Peer evaluation form (Toastmasters-style commendations, suggestions, star rating for each member) -> View received feedback -> Play again or leave
 
 ## Game Phases (Solo)
 1. `menu` - Main menu with stats display

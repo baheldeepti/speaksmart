@@ -24,6 +24,18 @@ export interface AggregatedRatings {
   ratings: { playerId: string; playerName: string; clarity: number; storytelling: number; confidence: number }[];
 }
 
+export interface PeerEvaluation {
+  fromId: string;
+  fromName: string;
+  fromRole: string;
+  toId: string;
+  toName: string;
+  toRole: string;
+  commendations: string;
+  suggestions: string;
+  overallRating: number;
+}
+
 export interface RoomState {
   id: string;
   name: string;
@@ -60,6 +72,8 @@ interface MultiplayerState {
   multiplayerMode: boolean;
   blockedPlayers: Set<string>;
   reportedPlayers: Set<string>;
+  receivedEvaluations: PeerEvaluation[];
+  peerEvalCounts: Record<string, number>;
 
   connect: () => void;
   disconnect: () => void;
@@ -83,6 +97,7 @@ interface MultiplayerState {
   sendAhCounterUpdate: (count: number, word: string) => void;
   sendEvaluation: (checklist: any[], score: number) => void;
   sendAudienceRating: (clarity: number, storytelling: number, confidence: number) => void;
+  sendPeerEvaluation: (toId: string, commendations: string, suggestions: string, overallRating: number) => void;
   endMeeting: () => void;
   returnToLobby: () => void;
 
@@ -112,6 +127,8 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
     multiplayerMode: false,
     blockedPlayers: new Set<string>(),
     reportedPlayers: new Set<string>(),
+    receivedEvaluations: [],
+    peerEvalCounts: {},
 
     connect: () => {
       const { ws: existingWs } = get();
@@ -200,8 +217,16 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
               });
               break;
 
+            case "peer_evaluations_received":
+              set({ receivedEvaluations: msg.evaluations || [] });
+              break;
+
+            case "peer_evaluation_count":
+              set({ peerEvalCounts: msg.counts || {} });
+              break;
+
             case "left_room":
-              set({ roomState: null, chatMessages: [] });
+              set({ roomState: null, chatMessages: [], receivedEvaluations: [], peerEvalCounts: {} });
               break;
 
             case "error":
@@ -230,7 +255,7 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
       const { ws } = get();
       if (ws) {
         ws.close();
-        set({ ws: null, connected: false, roomState: null, chatMessages: [] });
+        set({ ws: null, connected: false, roomState: null, chatMessages: [], receivedEvaluations: [], peerEvalCounts: {} });
       }
     },
 
@@ -309,6 +334,10 @@ export const useMultiplayer = create<MultiplayerState>((set, get) => {
 
     sendAudienceRating: (clarity, storytelling, confidence) => {
       send({ type: "audience_rating", clarity, storytelling, confidence });
+    },
+
+    sendPeerEvaluation: (toId, commendations, suggestions, overallRating) => {
+      send({ type: "peer_evaluation", toId, commendations, suggestions, overallRating });
     },
 
     endMeeting: () => {
