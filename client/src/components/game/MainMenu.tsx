@@ -9,9 +9,11 @@ interface MainMenuProps {
   onShowScoreboard?: () => void;
   onShowProgress?: () => void;
   onShowEngagement?: () => void;
+  onShowFramework?: () => void;
+  onShowReplay?: () => void;
 }
 
-export default function MainMenu({ onShowPrivacy, onShowHistory, onShowScoreboard, onShowProgress, onShowEngagement }: MainMenuProps) {
+export default function MainMenu({ onShowPrivacy, onShowHistory, onShowScoreboard, onShowProgress, onShowEngagement, onShowFramework, onShowReplay }: MainMenuProps) {
   const { goToRoleSelection, points, level, completedRoles, badges } = useToastmasters();
   const { toggleMute, isMuted } = useAudio();
   const { setMultiplayerMode } = useMultiplayer();
@@ -273,6 +275,42 @@ export default function MainMenu({ onShowPrivacy, onShowHistory, onShowScoreboar
               }}
             >
               Engagement
+            </button>
+          )}
+          {onShowFramework && (
+            <button
+              onClick={onShowFramework}
+              style={{
+                background: "rgba(233, 69, 96, 0.12)",
+                border: "1px solid rgba(233, 69, 96, 0.3)",
+                color: "#e94560",
+                padding: "10px 20px",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 600,
+                minHeight: 44,
+              }}
+            >
+              Learning Path
+            </button>
+          )}
+          {onShowReplay && (
+            <button
+              onClick={onShowReplay}
+              style={{
+                background: "rgba(66, 153, 225, 0.12)",
+                border: "1px solid rgba(66, 153, 225, 0.3)",
+                color: "#4299e1",
+                padding: "10px 20px",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 600,
+                minHeight: 44,
+              }}
+            >
+              Session Replay
             </button>
           )}
         </div>
