@@ -16,6 +16,7 @@ export default function SpeakerMode() {
   const recorder = useRecorder();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [started, setStarted] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
   const [pathwaysEnabled, setPathwaysEnabled] = useState(false);
   const [selectedPathway, setSelectedPathway] = useState<Pathway | null>(null);
@@ -55,6 +56,25 @@ export default function SpeakerMode() {
       setAudienceReaction("applause");
     }
   }, [timerSeconds, timerMaxSeconds, timerRunning, stopTimer, setAudienceReaction]);
+
+  useEffect(() => {
+    if (!finishing) return;
+    if (recorder.hasRecording && recorder.audioUrl) {
+      (async () => {
+        try {
+          const res = await fetch(recorder.audioUrl!);
+          const blob = await res.blob();
+          window.__pendingRecordingBlob = blob;
+          window.__pendingRecordingRole = "speaker";
+          window.__pendingRecordingDuration = timerSeconds;
+        } catch {}
+        completeRole();
+      })();
+    } else {
+      const timeout = setTimeout(() => completeRole(), 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [finishing, recorder.hasRecording, recorder.audioUrl]);
 
   const handlePathwayToggle = () => {
     const next = !pathwaysEnabled;
@@ -110,6 +130,7 @@ export default function SpeakerMode() {
     recorder.stopRecording();
     setAudienceReaction("applause");
     playSuccess();
+    setFinishing(true);
   };
 
   const formatTime = (seconds: number) => {
@@ -138,6 +159,84 @@ export default function SpeakerMode() {
       zIndex: 50,
       pointerEvents: "none",
     }}>
+      {started && recorder.isRecording && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          background: "rgba(233, 69, 96, 0.9)",
+          padding: "10px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          zIndex: 200,
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            width: 12, height: 12, borderRadius: "50%",
+            background: "white",
+            animation: "recPulse 1s infinite",
+          }} />
+          <span style={{ color: "white", fontSize: 14, fontWeight: 700, letterSpacing: 1 }}>
+            RECORDING YOUR SPEECH
+          </span>
+        </div>
+      )}
+
+      {started && !recorder.isRecording && !finishing && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          background: "rgba(72, 187, 120, 0.9)",
+          padding: "10px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          zIndex: 200,
+          pointerEvents: "none",
+        }}>
+          <span style={{ color: "white", fontSize: 14, fontWeight: 700 }}>
+            RECORDING STOPPED
+          </span>
+        </div>
+      )}
+
+      {finishing && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 200,
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            background: "rgba(0,0,0,0.9)",
+            borderRadius: 16,
+            padding: "32px 40px",
+            textAlign: "center",
+            color: "white",
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+              Processing your speech...
+            </div>
+            <div style={{ fontSize: 13, color: "#a0aec0" }}>
+              Preparing your evaluation
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{
         position: "absolute",
         top: 20,
@@ -224,7 +323,7 @@ export default function SpeakerMode() {
               fontSize: 12,
               color: "#9f7aea",
             }}>
-              📘 {selectedPathwayProject.projectName}
+              {selectedPathwayProject.projectName}
             </div>
           )}
         </div>
@@ -262,7 +361,7 @@ export default function SpeakerMode() {
               }}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "white" }}>
-                    📘 Practice with Pathways Project
+                    Practice with Pathways Project
                   </div>
                   <div style={{ fontSize: 11, color: "#718096", marginTop: 2 }}>
                     Select a Toastmasters Pathways project for tailored feedback
@@ -422,7 +521,7 @@ export default function SpeakerMode() {
                         fontSize: 11,
                         color: "#718096",
                       }}>
-                        ⏱️ Time: {selectedProject.minMinutes}-{selectedProject.maxMinutes} minutes
+                        Time: {selectedProject.minMinutes}-{selectedProject.maxMinutes} minutes
                       </div>
                     </div>
                   )}
@@ -448,18 +547,8 @@ export default function SpeakerMode() {
               Begin Speech
             </button>
           </div>
-        ) : !recorder.hasRecording ? (
+        ) : !finishing ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {recorder.isRecording && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{
-                  width: 10, height: 10, borderRadius: "50%",
-                  background: "#e94560",
-                  animation: "pulse 1.5s infinite",
-                }} />
-                <span style={{ color: "#e94560", fontSize: 12, fontWeight: 600 }}>REC</span>
-              </div>
-            )}
             <button
               onClick={handleFinish}
               style={{
@@ -478,100 +567,11 @@ export default function SpeakerMode() {
               Finish Speech
             </button>
           </div>
-        ) : (
-          <div style={{
-            background: "rgba(0,0,0,0.85)",
-            borderRadius: 16,
-            padding: "20px 28px",
-            textAlign: "center",
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}>
-            <div style={{ fontSize: 14, color: "#a0aec0", marginBottom: 12 }}>Your Recording</div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              {!recorder.isPlaying ? (
-                <button
-                  onClick={recorder.playRecording}
-                  style={{
-                    background: "linear-gradient(135deg, #4299e1, #3182ce)",
-                    color: "white",
-                    border: "none",
-                    padding: "10px 20px",
-                    borderRadius: 10,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    minHeight: 44,
-                  }}
-                >
-                  Play Back
-                </button>
-              ) : (
-                <button
-                  onClick={recorder.stopPlayback}
-                  style={{
-                    background: "rgba(255,255,255,0.15)",
-                    color: "white",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    padding: "10px 20px",
-                    borderRadius: 10,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    minHeight: 44,
-                  }}
-                >
-                  Stop
-                </button>
-              )}
-              <button
-                onClick={() => recorder.downloadRecording("speech-recording")}
-                style={{
-                  background: "rgba(255,255,255,0.1)",
-                  color: "white",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  padding: "10px 20px",
-                  borderRadius: 10,
-                  fontSize: 14,
-                  cursor: "pointer",
-                  minHeight: 44,
-                }}
-              >
-                Download
-              </button>
-              <button
-                onClick={async () => {
-                  if (recorder.audioUrl) {
-                    try {
-                      const res = await fetch(recorder.audioUrl);
-                      const blob = await res.blob();
-                      window.__pendingRecordingBlob = blob;
-                      window.__pendingRecordingRole = "speaker";
-                      window.__pendingRecordingDuration = timerSeconds;
-                    } catch {}
-                  }
-                  completeRole();
-                }}
-                style={{
-                  background: "linear-gradient(135deg, #48bb78, #38a169)",
-                  color: "white",
-                  border: "none",
-                  padding: "10px 20px",
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  minHeight: 44,
-                }}
-              >
-                Complete
-              </button>
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
 
       <style>{`
-        @keyframes pulse {
+        @keyframes recPulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
         }

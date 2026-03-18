@@ -15,7 +15,7 @@ export default function TableTopicsMode() {
   const recorder = useRecorder();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [started, setStarted] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(true);
 
   useEffect(() => {
@@ -33,9 +33,29 @@ export default function TableTopicsMode() {
     if (timerSeconds >= timerMaxSeconds && timerRunning) {
       stopTimer();
       recorder.stopRecording();
-      setShowFeedback(true);
+      setFinishing(true);
+      playSuccess();
     }
   }, [timerSeconds, timerMaxSeconds, timerRunning, stopTimer]);
+
+  useEffect(() => {
+    if (!finishing) return;
+    if (recorder.hasRecording && recorder.audioUrl) {
+      (async () => {
+        try {
+          const res = await fetch(recorder.audioUrl!);
+          const blob = await res.blob();
+          window.__pendingRecordingBlob = blob;
+          window.__pendingRecordingRole = "table_topics";
+          window.__pendingRecordingDuration = timerSeconds;
+        } catch {}
+        completeRole();
+      })();
+    } else {
+      const timeout = setTimeout(() => completeRole(), 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [finishing, recorder.hasRecording, recorder.audioUrl]);
 
   const handleStart = () => {
     setStarted(true);
@@ -46,21 +66,8 @@ export default function TableTopicsMode() {
   const handleFinish = () => {
     stopTimer();
     recorder.stopRecording();
-    setShowFeedback(true);
     playSuccess();
-  };
-
-  const handleComplete = async () => {
-    if (recorder.audioUrl) {
-      try {
-        const res = await fetch(recorder.audioUrl);
-        const blob = await res.blob();
-        window.__pendingRecordingBlob = blob;
-        window.__pendingRecordingRole = "table_topics";
-        window.__pendingRecordingDuration = timerSeconds;
-      } catch {}
-    }
-    completeRole();
+    setFinishing(true);
   };
 
   const handleNewPrompt = () => {
@@ -270,6 +277,84 @@ export default function TableTopicsMode() {
       zIndex: 50,
       pointerEvents: "none",
     }}>
+      {started && recorder.isRecording && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          background: "rgba(233, 69, 96, 0.9)",
+          padding: "10px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          zIndex: 200,
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            width: 12, height: 12, borderRadius: "50%",
+            background: "white",
+            animation: "recPulse 1s infinite",
+          }} />
+          <span style={{ color: "white", fontSize: 14, fontWeight: 700, letterSpacing: 1 }}>
+            RECORDING YOUR SPEECH
+          </span>
+        </div>
+      )}
+
+      {started && !recorder.isRecording && !finishing && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          background: "rgba(72, 187, 120, 0.9)",
+          padding: "10px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          zIndex: 200,
+          pointerEvents: "none",
+        }}>
+          <span style={{ color: "white", fontSize: 14, fontWeight: 700 }}>
+            RECORDING STOPPED
+          </span>
+        </div>
+      )}
+
+      {finishing && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 200,
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            background: "rgba(0,0,0,0.9)",
+            borderRadius: 16,
+            padding: "32px 40px",
+            textAlign: "center",
+            color: "white",
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+              Processing your speech...
+            </div>
+            <div style={{ fontSize: 13, color: "#a0aec0" }}>
+              Preparing your evaluation
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{
         position: "absolute",
         top: 20,
@@ -306,7 +391,7 @@ export default function TableTopicsMode() {
         <div style={{ fontSize: 11, color: "#718096" }}>1-2 minute impromptu speech</div>
       </div>
 
-      {!showFeedback ? (
+      {!finishing && (
         <div style={{
           background: "rgba(0,0,0,0.85)",
           borderRadius: 20,
@@ -460,138 +545,10 @@ export default function TableTopicsMode() {
             )}
           </div>
         </div>
-      ) : (
-        <div style={{
-          background: "rgba(0,0,0,0.85)",
-          borderRadius: 20,
-          padding: "32px",
-          maxWidth: 400,
-          width: "90%",
-          textAlign: "center",
-          color: "white",
-          pointerEvents: "auto",
-          border: "1px solid rgba(255,255,255,0.1)",
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>👏</div>
-          <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
-            Great Job!
-          </div>
-          <div style={{ fontSize: 16, color: "#a0aec0", marginBottom: 8 }}>
-            You spoke for {formatTime(timerSeconds)}
-          </div>
-          <div style={{ fontSize: 14, color: "#718096", marginBottom: 20 }}>
-            {timerSeconds < 60
-              ? "Try to elaborate more next time - aim for at least 1 minute!"
-              : timerSeconds <= 120
-              ? "Perfect timing! You stayed within the ideal range."
-              : "Great effort! Try to be a bit more concise next time."}
-          </div>
-
-          {recorder.hasRecording && (
-            <div style={{
-              background: "rgba(255,255,255,0.05)",
-              borderRadius: 12,
-              padding: "14px 18px",
-              marginBottom: 16,
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}>
-              <div style={{ fontSize: 12, color: "#a0aec0", marginBottom: 10 }}>Your Recording</div>
-              <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                {!recorder.isPlaying ? (
-                  <button
-                    onClick={recorder.playRecording}
-                    style={{
-                      background: "linear-gradient(135deg, #4299e1, #3182ce)",
-                      color: "white",
-                      border: "none",
-                      padding: "8px 18px",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      minHeight: 44,
-                    }}
-                  >
-                    Play Back
-                  </button>
-                ) : (
-                  <button
-                    onClick={recorder.stopPlayback}
-                    style={{
-                      background: "rgba(255,255,255,0.15)",
-                      color: "white",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      padding: "8px 18px",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      minHeight: 44,
-                    }}
-                  >
-                    Stop
-                  </button>
-                )}
-                <button
-                  onClick={() => recorder.downloadRecording("table-topics-recording")}
-                  style={{
-                    background: "rgba(255,255,255,0.1)",
-                    color: "white",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    padding: "8px 18px",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    minHeight: 44,
-                  }}
-                >
-                  Download
-                </button>
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={handleComplete}
-            style={{
-              background: "linear-gradient(135deg, #48bb78, #38a169)",
-              color: "white",
-              border: "none",
-              padding: "12px 24px",
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              minHeight: 44,
-            }}
-          >
-            Complete Session
-          </button>
-        </div>
-      )}
-
-      {started && !showFeedback && recorder.isRecording && (
-        <div style={{
-          position: "absolute",
-          bottom: 20,
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          pointerEvents: "none",
-        }}>
-          <div style={{
-            width: 10, height: 10, borderRadius: "50%",
-            background: "#e94560",
-            animation: "pulse 1.5s infinite",
-          }} />
-          <span style={{ color: "#e94560", fontSize: 12, fontWeight: 600 }}>REC</span>
-        </div>
       )}
 
       <style>{`
-        @keyframes pulse {
+        @keyframes recPulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
         }
